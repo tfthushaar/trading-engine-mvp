@@ -1,0 +1,27 @@
+from celery import Celery
+from apps.api.config import get_settings
+
+settings = get_settings()
+
+celery_app = Celery(
+    "trading_mvp",
+    broker=settings.celery_broker_url,
+    backend=settings.celery_result_backend,
+    include=[
+        "apps.api.tasks.market_tasks",
+        "apps.api.tasks.intelligence_tasks",
+        "apps.api.tasks.ml_tasks",
+        "apps.api.tasks.portfolio_tasks",
+    ],
+)
+
+celery_app.conf.update(
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],
+    timezone=settings.scheduler_timezone,
+    enable_utc=True,
+    task_track_started=True,
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
+)

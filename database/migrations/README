@@ -1,0 +1,4 @@
+Alembic migrations for trading-engine-mvp PostgreSQL database.
+
+Run: alembic upgrade head
+Create: alembic revision --autogenerate -m "description"
