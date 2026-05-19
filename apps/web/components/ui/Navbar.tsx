@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   BarChart2, Cpu, BookOpen, Search, FlaskConical,
   Briefcase, BookMarked, TrendingUp, Key, LogOut, LogIn,
-  Menu, X, Bell,
+  Menu, X, Bell, Trophy,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 
@@ -133,3 +133,4 @@ export function Navbar() {
     </nav>
   );
 }
+

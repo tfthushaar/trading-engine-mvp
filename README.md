@@ -1,286 +1,366 @@
-# Trading Strategy Engine — AI-Driven Financial Research Platform
+# AI Market Intelligence OS
 
-An end-to-end, AI-powered quantitative trading platform that ingests multi-source market data, runs NLP sentiment analysis, generates trading hypotheses via LLM agents, converts them to structured algorithmic strategies, backtests them, and explains their performance — all surfaced through a live React dashboard.
+**An AI-powered market analysis and trader decision-support platform.**
 
----
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        DATA SOURCES                              │
-│  Yahoo Finance  │  NewsAPI  │  FRED API  │  Reddit (optional)    │
-└────────┬────────┴─────┬─────┴─────┬──────┴──────┬───────────────┘
-         │              │           │             │
-         ▼              ▼           ▼             ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  PHASE 1 — DATA INGESTION                                        │
-│  stock_collector │ news_collector │ macro_collector │ social      │
-└──────────────────────────┬───────────────────────────────────────┘
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  PHASE 2 — NLP INTELLIGENCE                                      │
-│  FinBERT sentiment │ Event detection │ Sector aggregation        │
-└──────────────────────────┬───────────────────────────────────────┘
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  PHASE 3 — AI RESEARCH AGENT                                     │
-│  Signal summary → LLM hypothesis generation → Rank → Filter     │
-└──────────────────────────┬───────────────────────────────────────┘
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  PHASE 4 — STRATEGY DISCOVERY ENGINE                             │
-│  Template match → LLM strategy build → Validate → Rank          │
-└──────────────────────────┬───────────────────────────────────────┘
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  PHASE 5 — AUTOMATED BACKTESTING ENGINE                          │
-│  Signal interpreter → Trade executor → Portfolio sim → Metrics  │
-└──────────────────────────┬───────────────────────────────────────┘
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  PHASE 6 — EXPLAINABLE AI DECISION ENGINE                        │
-│  Feature builder → SHAP analysis → Signal attribution → Text    │
-└──────────────────────────┬───────────────────────────────────────┘
-                           ▼
-      ┌────────────────────────────────────┐
-      │  DuckDB · 12 tables · auto-created │
-      └────────────────────────────────────┘
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  DASHBOARD                                                       │
-│  FastAPI backend (port 8000) + React/Vite frontend (port 5173)  │
-│  Panels: Sentiment · Intelligence · Hypotheses · Strategies      │
-│          Backtest Performance · Explainable AI · Trade Sim      │
-└──────────────────────────────────────────────────────────────────┘
-```
+> For educational and informational purposes only. Not financial advice.  
+> All trading involves significant risk of loss.
 
 ---
 
-## Quick Start
+## What This Is
 
-### 1. Prerequisites
+A complete platform that helps active traders understand markets, analyze trade setups, monitor risk, and improve trading discipline — through AI-assisted market interpretation, real-time alerts, and contextual learning.
 
-- Python 3.10+
-- Node.js 18+
+**This is NOT:**
+- An autonomous trading bot
+- A "guaranteed prediction" system
+- Financial advice
 
-### 2. Install Python Dependencies
+**This IS:**
+- An AI co-pilot that reduces cognitive overload
+- A contextual education system
+- A trade quality evaluator
+- A real-time market intelligence feed
+- A behavioral coaching tool
 
-```bash
-cd market_research_ai
-pip install -r requirements.txt
-```
+---
 
-### 3. Configure API Keys
+## Features
 
-Edit the `.env` file (already included as a template):
+### Dashboard
+- AI-generated pre-market briefings (Claude claude-sonnet-4-6)
+- Real-time macro instrument ticker bar (SPY, QQQ, VIX, DXY, 10Y)
+- Sector heatmap with dynamic intensity coloring
+- Top gainers/losers (click to navigate to ticker)
+- Live watchlist alert feed
 
-| Key | Required | Where to get it |
+### Watchlist & Notifications
+- Build watchlists from 20+ popular stocks or search any ticker
+- Real-time WebSocket notifications per user (Redis pub/sub)
+- AI-narrated alerts: volume spikes, breakouts, large price moves, options anomalies
+- Buy/sell signal scanner (RSI + EMA based, with mandatory disclaimer)
+- Notification center with unread count and severity levels
+
+### AI Analyst (Multi-Agent Chat)
+- Natural language market research
+- LangGraph orchestration routes queries to the right specialist:
+  - **News Agent** — news events and market-moving headlines
+  - **Market Analyst Agent** — sector trends, macro, market regime
+  - **Trade Reviewer Agent** — trade setup evaluation in natural language
+  - **Risk Agent** — position sizing, portfolio risk
+  - **Portfolio Agent** — diversification, correlation analysis
+  - **Educational Agent** — explains any trading concept at your level
+- Full conversation history with agent attribution
+
+### Strategy Competition (Multi-Agent)
+- 5 independent strategy agents compete on any ticker:
+  1. RSI Mean Reversion
+  2. EMA Trend Following
+  3. Bollinger Band Breakout
+  4. MACD Momentum
+  5. Volume + Price Composite
+- Concurrent backtesting with realistic commissions and slippage
+- Ranked by risk-adjusted return (Sharpe ratio)
+- AI coach interprets why the winner worked for that specific ticker
+- Run on single ticker or entire watchlist at once
+
+### Ticker Intelligence
+- Live quote with price and change
+- AI analysis summary (Claude claude-sonnet-4-6)
+- 6-month custom SVG price chart
+- News intelligence: AI-narrated sentiment, severity, affected sectors
+- Trade setup evaluator with R:R, technical signals, risk warnings
+
+### Trade Lab
+- **Evaluator**: Input ticker + entry/stop/target → 0–100 score with letter grade
+- **Strategy Builder**: No-code drag-and-drop strategy creator
+- **Backtester**: Async Celery backtest with real commission modeling
+- Monte Carlo simulation for strategy risk assessment
+
+### Portfolio Brain
+- Add positions and track real-time P&L
+- Sector exposure bar chart
+- Risk metrics: VaR (95%), CVaR, beta vs SPY, max drawdown, annual volatility
+- Correlation matrix heatmap
+- AI portfolio health assessment
+
+### Trade Journal
+- Log every trade with emotion tracking and rule adherence
+- AI post-trade review (auto-generated after closing a position)
+- Behavioral pattern detection: revenge trading, winner cutting, overtrading, FOMO entry
+- Monthly discipline score (0–100) with AI coaching report
+
+### Learning Hub
+- Contextual AI explanations adapated to your level (beginner/intermediate/advanced)
+- 7 core concepts with detailed breakdowns
+- Optional ticker context: "explain RSI using current AAPL readings"
+- Adaptive curriculum — recommends next topic based on history
+
+### Explore
+- Sector heatmap and top movers
+- Search any ticker for quick quote
+- Click any ticker to open full intelligence view
+
+---
+
+## Tech Stack
+
+### Backend
+| Component | Technology |
+|---|---|
+| API Framework | FastAPI + Uvicorn |
+| Database (user data) | PostgreSQL 16 + SQLAlchemy 2.0 (async) |
+| Database (analytics) | DuckDB (existing pipeline) |
+| Cache + Pub/Sub | Redis 7 |
+| Task Queue | Celery |
+| Scheduler | APScheduler (IST timezone) |
+| Migrations | Alembic |
+| Vector DB | ChromaDB |
+
+### AI / ML
+| Component | Technology |
+|---|---|
+| Primary LLM | Claude claude-sonnet-4-6 (Anthropic) |
+| Fallback LLM | GPT-4o (OpenAI) |
+| Fast routing | Claude Haiku (low-latency agent routing) |
+| NLP Sentiment | FinBERT (ProsusAI) |
+| Entity extraction | spaCy |
+| Agent orchestration | LangGraph + LangChain |
+| ML models | XGBoost, PyTorch (LSTM), Prophet, GARCH |
+| Explainability | SHAP |
+
+### Frontend
+| Component | Technology |
+|---|---|
+| Framework | Next.js 14 (App Router) |
+| Styling | Tailwind CSS (custom B&W design system) |
+| State (server) | TanStack Query |
+| Charts | Custom SVG (price) + Recharts (analytics) |
+| Icons | Lucide React |
+| Fonts | Inter + JetBrains Mono |
+
+### Infrastructure
+| Component | Technology |
+|---|---|
+| Containers | Docker + Docker Compose |
+| Reverse Proxy | Nginx |
+| CI/CD | GitHub Actions |
+| Monitoring | Prometheus + Grafana + Sentry |
+
+---
+
+## Data Sources
+
+| Type | Source | Cost |
 |---|---|---|
-| `NEWSAPI_KEY` | ✅ | [newsapi.org/register](https://newsapi.org/register) |
-| `FRED_API_KEY` | ✅ | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) |
-| `OPENAI_API_KEY` | ✅ | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| `REDDIT_CLIENT_ID` | ⬜ | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) *(optional)* |
-| `REDDIT_CLIENT_SECRET` | ⬜ | Same as above *(optional)* |
-
-> **Note:** Reddit credentials are optional — social sentiment will be skipped. Yahoo Finance requires no key.
-
-### 4. Run the Data Pipeline
-
-```bash
-# Full cycle (ingest → NLP → research → strategy → backtest)
-python -m pipeline.data_pipeline --once
-
-# Run individual phases
-python -m pipeline.data_pipeline --research   # Phase 3: LLM hypothesis generation
-python -m pipeline.data_pipeline --strategy   # Phase 4: LLM strategy discovery
-python -m pipeline.data_pipeline --backtest   # Phase 5: Backtesting engine
-
-# After backtesting, generate AI explanations
-python generate_explanations.py
-
-# Continuous scheduled mode
-python -m pipeline.data_pipeline --schedule
-```
-
-### 5. Start the Dashboard
-
-**Terminal 1 — Backend API:**
-```bash
-python -m uvicorn dashboard.backend.app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-**Terminal 2 — Frontend:**
-```bash
-cd dashboard/frontend
-npm install
-npm run dev
-```
-
-Open **http://localhost:5173** in your browser.
+| Live prices + WebSocket | Polygon.io | $29/mo |
+| EOD prices | Yahoo Finance (yfinance) | Free |
+| News | NewsAPI + Benzinga | Free – $99/mo |
+| Options chain | Tradier | $30/mo |
+| Earnings calendar | Financial Modeling Prep | Free tier |
+| Macro indicators | FRED (Federal Reserve) | Free |
+| Institutional holdings | SEC EDGAR 13F | Free |
+| Insider trades | SEC EDGAR Form 4 | Free |
+| Social sentiment | Reddit + StockTwits | Free |
+| Sector ETFs | Yahoo Finance | Free |
 
 ---
 
 ## Project Structure
 
 ```
-market_research_ai/
-├── .env                          # API keys (git-ignored)
-├── requirements.txt              # Python dependencies
-├── generate_explanations.py      # Run Explainability Engine on backtests
+trading-engine-mvp/
+├── apps/
+│   ├── api/                    # FastAPI backend
+│   │   ├── routers/            # 10 route groups
+│   │   ├── websockets/         # WebSocket: prices, alerts
+│   │   ├── middleware/         # auth, rate limiting, audit
+│   │   └── tasks/              # Celery tasks (5 modules)
+│   └── web/                    # Next.js 14 frontend
+│       ├── app/                # 10 pages (App Router)
+│       └── components/         # Shared UI + intelligence components
 │
-├── data_ingestion/               # Phase 1 — data collectors
-│   ├── stock_collector.py        # Yahoo Finance OHLCV
-│   ├── news_collector.py         # NewsAPI headlines
-│   ├── macro_collector.py        # FRED macro indicators
-│   └── social_collector.py      # Reddit posts (optional)
+├── core/                       # Preserved original 6-phase pipeline
+│   ├── data_ingestion/         # 9 collectors (stock, news, macro, social,
+│   │                           #   options, earnings, insider, institutional, watchlist)
+│   ├── sentiment_engine/       # FinBERT NLP
+│   ├── research_agent/         # LLM hypothesis generation
+│   ├── strategy_engine/        # 5-template strategy builder
+│   ├── backtesting_engine/     # Custom Python backtester
+│   └── explainability_engine/  # SHAP decision attribution
 │
-├── sentiment_engine/             # Phase 2 — NLP intelligence
-│   ├── finbert_model.py          # FinBERT inference wrapper
-│   ├── news_sentiment.py         # Per-article sentiment scoring
-│   ├── reddit_sentiment.py       # Reddit engagement sentiment
-│   ├── event_detection.py        # Earnings / M&A / policy events
-│   └── sector_aggregation.py    # Sector-level signal aggregation
+├── intelligence/               # AI interpretation layer (NEW)
+│   ├── news_intelligence/      # 7-step news pipeline
+│   ├── trade_quality/          # Trade scorer (0-100)
+│   ├── market_narrative/       # Daily briefings, sector summaries
+│   └── watchlist_intelligence/ # Real-time anomaly detection
 │
-├── research_agent/               # Phase 3 — AI research agent
-│   ├── agent.py                  # Orchestrator
-│   ├── signal_summarizer.py      # Market snapshot builder
-│   ├── hypothesis_generator.py   # OpenAI LLM hypothesis generation
-│   ├── hypothesis_ranker.py      # Confidence ranking
-│   ├── hypothesis_filter.py      # Quality filtering
-│   └── prompt_templates.py       # LLM prompt templates
+├── agents/                     # Multi-agent system (NEW)
+│   ├── orchestrator.py         # LangGraph routing
+│   ├── *_agent.py              # 6 specialist agents
+│   └── strategy_competition/   # 5-strategy competition engine
+│       ├── strategies.py       # Strategy signal functions
+│       └── competition_runner.py # Parallel backtest orchestrator
 │
-├── strategy_engine/              # Phase 4 — strategy discovery
-│   ├── __init__.py               # StrategyDiscoveryEngine orchestrator
-│   ├── strategy_templates.py     # 5 canonical strategy archetypes
-│   ├── strategy_builder.py       # LLM hypothesis → strategy JSON
-│   ├── strategy_parser.py        # JSON parsing & normalisation
-│   ├── strategy_validator.py     # Rule-based quality gate
-│   └── strategy_ranker.py        # 5-dimension scoring & ranking
+├── ml/                         # ML models (NEW)
+│   ├── feature_engineering.py  # 20+ technical features
+│   ├── regime_detector.py      # XGBoost market regime classifier
+│   ├── ensemble.py             # Probabilistic ensemble forecaster
+│   └── forecasters/            # XGBoost, LSTM, Prophet
 │
-├── backtesting_engine/           # Phase 5 — automated backtesting
-│   ├── __init__.py               # BacktestEngine orchestrator
-│   ├── backtest_runner.py        # Per-strategy backtest coordination
-│   ├── strategy_interpreter.py   # JSON conditions → signal functions
-│   ├── trade_executor.py         # Signal → trades
-│   ├── portfolio_simulator.py    # Position sizing, P&L simulation
-│   └── performance_metrics.py   # Sharpe, drawdown, win rate, etc.
-│
-├── explainability_engine/        # Phase 6 — explainable AI
-│   ├── strategy_explainer.py     # End-to-end explanation pipeline
-│   ├── feature_builder.py        # Feature matrix from trades & prices
-│   ├── shap_analyzer.py          # SHAP value computation
-│   ├── signal_attribution.py     # Signal → dominant factor mapping
-│   └── explanation_ranker.py    # Confidence scoring
-│
-├── dashboard/
-│   ├── backend/
-│   │   ├── app.py                # FastAPI application & route definitions
-│   │   └── db_queries.py         # Dashboard-specific DB queries
-│   └── frontend/                 # React + Vite + TypeScript
-│       └── src/
-│           ├── App.tsx            # Main dashboard layout
-│           ├── api/client.ts      # API fetch functions
-│           ├── types.ts           # Shared TypeScript types
-│           └── components/panels/
-│               ├── MarketSentimentMonitor.tsx
-│               ├── MarketIntelligencePanel.tsx
-│               ├── ResearchHypothesesPanel.tsx
-│               ├── StrategyDiscoveryPanel.tsx
-│               ├── BacktestPerformance.tsx
-│               ├── ExplainableAIInsights.tsx
-│               └── TradeSimulationViewer.tsx
-│
-├── database/
-│   ├── schema.sql                # DuckDB table definitions (all 6 phases)
-│   └── db_manager.py             # DB connection + insert/query helpers
-│
-├── pipeline/
-│   └── data_pipeline.py          # Orchestration + scheduling + CLI
-│
-├── utils/
-│   ├── config.py                 # Centralised config (reads .env)
-│   └── logger.py                 # Rotating file + console logger
-│
-├── data/                         # DuckDB file (auto-created, git-ignored)
-└── logs/                         # Log files (auto-created, git-ignored)
+├── portfolio/                  # Portfolio brain (NEW)
+├── behavioral/                 # Behavioral intelligence (NEW)
+├── education/                  # Contextual learning (NEW)
+├── pipeline/                   # Scheduler + event bus (NEW)
+├── database/                   # SQLAlchemy models + Alembic migrations
+└── infra/                      # Docker, Nginx configs
 ```
 
 ---
 
-## Database Schema
+## Quick Start
 
-| Table | Phase | Description |
+### 1. Clone and setup
+
+```bash
+git clone https://github.com/tfthushaar/trading-engine-mvp.git
+cd trading-engine-mvp
+cp .env.example .env
+# Fill in your API keys in .env
+```
+
+### 2. Required API Keys
+
+| Key | Get From | Required |
 |---|---|---|
-| `stock_prices` | 1 | Daily OHLCV data from Yahoo Finance |
-| `news_articles` | 1 | Financial news headlines from NewsAPI |
-| `macro_indicators` | 1 | FRED macro time-series (CPI, GDP, Fed Funds, etc.) |
-| `social_sentiment` | 1 | Reddit posts (optional) |
-| `news_sentiment` | 2 | FinBERT sentiment scores per article |
-| `social_sentiment_scores` | 2 | Engagement-weighted Reddit sentiment |
-| `sector_sentiment` | 2 | Aggregated sector-level sentiment signals |
-| `market_events` | 2 | Detected earnings / M&A / policy events |
-| `research_hypotheses` | 3 | LLM-generated trading hypotheses |
-| `trading_strategies` | 4 | Structured, backtestable algorithmic strategies |
-| `backtest_results` | 5 | Strategy performance metrics (Sharpe, drawdown, etc.) |
-| `trade_logs` | 5 | Individual simulated trade records |
-| `strategy_performance` | 5 | Composite strategy performance evaluation |
-| `strategy_explanations` | 6 | SHAP values, signal attribution, and narrative text |
+| `ANTHROPIC_API_KEY` | console.anthropic.com | Yes (AI features) |
+| `NEWS_API_KEY` | newsapi.org | Yes (news feed) |
+| `FRED_API_KEY` | fred.stlouisfed.org | Yes (macro data) |
+| `OPENAI_API_KEY` | platform.openai.com | Optional (fallback) |
+| `POLYGON_API_KEY` | polygon.io | Optional (live prices) |
+| `TRADIER_API_KEY` | developer.tradier.com | Optional (options) |
+| `FMP_API_KEY` | financialmodelingprep.com | Optional (earnings) |
+
+**Tip:** You can also enter API keys directly in the browser at `/settings/api-keys` — they're stored locally and never sent to the server.
+
+### 3. Start with Docker
+
+```bash
+docker compose up --build
+```
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| API + Swagger | http://localhost:8000/api/docs |
+| ChromaDB | http://localhost:8001 |
+
+### 4. Start without Docker (development)
+
+```bash
+# Backend
+pip install -r requirements.txt
+uvicorn apps.api.main:app --reload
+
+# Frontend
+cd apps/web
+npm install
+npm run dev
+
+# Worker (optional — for backtesting)
+celery -A apps.api.celery_app worker --loglevel=info
+
+# Scheduler (optional — for automated data collection)
+python -m pipeline.scheduler
+```
 
 ---
 
-## Dashboard Panels
+## Pages
 
-| Panel | Data Source | What it shows |
-|---|---|---|
-| **Market Sentiment Monitor** | `news_sentiment`, `sector_sentiment` | FinBERT sentiment trends by sector |
-| **Market Intelligence** | `macro_indicators`, `market_events` | FRED macro indicators and event feed |
-| **Research Hypotheses** | `research_hypotheses` | LLM-generated hypothesis cards with confidence scores |
-| **Strategy Discovery** | `trading_strategies` | Active strategies with entry/exit rules |
-| **Backtest Performance** | `backtest_results` | Sharpe ratio, max drawdown, win rate, return charts |
-| **Explainable AI Insights** | `strategy_explanations` | SHAP feature importance and narrative explanation |
-| **Trade Simulation Viewer** | `trade_logs` | Individual trades plotted against the price chart |
+| Route | Feature |
+|---|---|
+| `/dashboard` | AI briefing, macro bar, sector heatmap, alerts |
+| `/explore` | Search tickers, top movers, sector overview |
+| `/watchlist` | Build watchlists, real-time notifications, signal scanner |
+| `/ticker/[symbol]` | Intelligence, chart, news, trade evaluator |
+| `/ai-analyst` | Natural language market research chat |
+| `/trade-lab` | Trade evaluator, strategy builder, backtester |
+| `/competition` | 5-agent strategy competition on any ticker |
+| `/portfolio` | Portfolio analysis, risk metrics, correlation |
+| `/learn` | Contextual AI explanations, adaptive curriculum |
+| `/journal` | Trade journal, behavioral analysis, discipline score |
+| `/settings/api-keys` | Enter API keys (stored in browser) |
+| `/login` | Authentication |
+| `/register` | Create account + disclaimer acknowledgment |
 
 ---
 
 ## API Endpoints
 
-All served from **http://localhost:8000/api**
+Full interactive documentation at `/api/docs` (Swagger UI).
 
-| Endpoint | Description |
-|---|---|
-| `GET /sentiment` | Sector sentiment data |
-| `GET /macro` | Macro indicators + market events |
-| `GET /hypotheses` | Research hypotheses list |
-| `GET /strategies` | Trading strategies list |
-| `GET /backtests` | Backtest results |
-| `GET /explanations` | Strategy explanations |
-| `GET /trade-simulation/{id}` | Trades + price data for a strategy |
-
----
-
-## Strategy Templates
-
-| Template | Trigger | Use Case |
-|---|---|---|
-| **Momentum** | Sustained price move + positive sentiment | Trend following |
-| **Mean Reversion** | Overbought/oversold + divergence | Contrarian plays |
-| **Event-Driven** | Market events (earnings, M&A) | Catalyst trading |
-| **Macro Regime** | Rate / CPI / GDP shifts | Macro-driven trades |
-| **Sentiment Divergence** | News vs price disconnect | Sentiment alpha |
+Key endpoint groups:
+- `GET /api/market/*` — live quotes, history, sector data, movers
+- `POST /api/intelligence/trade/evaluate` — trade quality scorer
+- `GET /api/intelligence/briefing/daily` — AI pre-market briefing
+- `POST /api/agents/chat` — multi-agent natural language chat
+- `POST /api/competition/run/{ticker}` — strategy competition
+- `POST /api/competition/run-watchlist` — watchlist competition
+- `POST /api/watchlist/alerts/signals` — buy/sell signal scanner
+- `GET /api/portfolio/analysis` — AI portfolio report
+- `GET /api/journal/behavioral-report` — behavioral coaching report
+- `GET /api/learn/explain/{concept}` — contextual education
 
 ---
 
-## Key Technologies
+## Security
 
-| Layer | Technology |
-|---|---|
-| Data ingestion | `yfinance`, `requests` (NewsAPI, FRED, Reddit) |
-| NLP / Sentiment | `transformers` (FinBERT), `torch` |
-| LLM agents | `openai` (GPT-3.5-turbo / GPT-4o) |
-| Backtesting | Pure Python — no external backtest library |
-| Explainability | `shap`, `scikit-learn`, `pandas` |
-| Database | `duckdb` |
-| Backend API | `fastapi`, `uvicorn` |
-| Frontend | React 18, Vite, TypeScript, Recharts, Tailwind CSS |
-| Scheduling | `schedule` (Python) |
+- JWT authentication (15-minute access tokens, 7-day refresh)
+- Redis-backed rate limiting (100/1000/10000 req/hr by tier)
+- Audit logging on all requests
+- API keys stored in browser localStorage only (never sent to server)
+- All AI outputs include mandatory financial disclaimer
+
+---
+
+## Compliance
+
+This platform provides AI-generated market analysis for **educational and informational purposes only**.
+
+- Does not constitute financial advice or investment recommendations
+- Does not facilitate order execution or broker connectivity
+- Users must acknowledge disclaimer at registration
+- All AI outputs carry mandatory disclaimer text
+- Position sizing and trade decisions remain entirely with the user
+
+---
+
+## Roadmap
+
+- [ ] Phase 4: ML model training pipeline (XGBoost regime, LSTM price patterns)
+- [ ] Phase 5: LangGraph agent memory persistence (ChromaDB RAG)
+- [ ] Phase 6: Mobile-responsive PWA
+- [ ] Phase 7: Broker API integration (paper trading only)
+- [ ] Phase 8: Options chain visualization and Greeks analysis
+- [ ] Phase 9: Multi-user collaboration and shared watchlists
+- [ ] Phase 10: Production Kubernetes deployment on AWS/GCP
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/your-feature`)
+3. Commit with conventional commits (`feat:`, `fix:`, `docs:`)
+4. Open a pull request
+
+---
+
+## License
+
+MIT License — See `LICENSE` file.
+
+---
+
+*Built on top of the original [KernelLex/trading-engine](https://github.com/KernelLex/trading-engine) research platform.*

@@ -12,6 +12,7 @@ from apps.api.routers import (
     auth, market_data, intelligence, trade_lab,
     portfolio, journal, learning, agents, watchlist,
 )
+from apps.api.routers import competition
 from apps.api.websockets.price_feed import router as ws_price_router
 from apps.api.websockets.alerts import router as ws_alerts_router
 
@@ -63,7 +64,8 @@ app.include_router(portfolio.router,    prefix="/api/portfolio",      tags=["por
 app.include_router(journal.router,      prefix="/api/journal",        tags=["journal"])
 app.include_router(learning.router,     prefix="/api/learn",          tags=["learning"])
 app.include_router(agents.router,       prefix="/api/agents",         tags=["agents"])
-app.include_router(watchlist.router,    prefix="/api/watchlist",      tags=["watchlist"])
+app.include_router(watchlist.router,     prefix="/api/watchlist",      tags=["watchlist"])
+app.include_router(competition.router,  prefix="/api/competition",    tags=["strategy-competition"])
 
 # ── WebSocket Routers ─────────────────────────────────────────────────────────
 app.include_router(ws_price_router,  prefix="/ws")
