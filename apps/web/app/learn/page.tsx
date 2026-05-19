@@ -1,117 +1,123 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { BookOpen, ChevronRight } from "lucide-react";
+import { BookOpen, ChevronRight, Sparkles } from "lucide-react";
 
 const CONCEPTS = [
-  { key: "rsi", label: "RSI", category: "Momentum" },
-  { key: "macd", label: "MACD", category: "Momentum" },
-  { key: "moving_average", label: "Moving Averages", category: "Trend" },
-  { key: "support_resistance", label: "Support & Resistance", category: "Price Action" },
-  { key: "volume", label: "Volume Analysis", category: "Confirmation" },
-  { key: "bollinger_bands", label: "Bollinger Bands", category: "Volatility" },
-  { key: "risk_reward", label: "Risk/Reward", category: "Risk Management" },
+  { key:"rsi", label:"RSI", category:"Momentum" },
+  { key:"macd", label:"MACD", category:"Momentum" },
+  { key:"moving_average", label:"Moving Averages", category:"Trend" },
+  { key:"support_resistance", label:"Support & Resistance", category:"Price Action" },
+  { key:"volume", label:"Volume Analysis", category:"Confirmation" },
+  { key:"bollinger_bands", label:"Bollinger Bands", category:"Volatility" },
+  { key:"risk_reward", label:"Risk / Reward", category:"Risk Management" },
 ];
 
 export default function LearnPage() {
   const [selected, setSelected] = useState<string | null>(null);
-  const [tickerInput, setTickerInput] = useState("");
+  const [ticker, setTicker] = useState("");
 
   const { data: nextTopic } = useQuery({
     queryKey: ["next-topic"],
-    queryFn: () => api.get("/api/learn/next-topic").then((r) => r.data),
+    queryFn: () => api.get("/api/learn/next-topic").then(r => r.data),
   });
 
   const { data: explanation, isLoading: explaining } = useQuery({
-    queryKey: ["explain", selected, tickerInput],
-    queryFn: () =>
-      api.get(`/api/learn/explain/${selected}${tickerInput ? `?context_ticker=${tickerInput}` : ""}`).then((r) => r.data),
+    queryKey: ["explain", selected, ticker],
+    queryFn: () => api.get(`/api/learn/explain/${selected}${ticker ? `?context_ticker=${ticker}` : ""}`).then(r => r.data),
     enabled: !!selected,
   });
 
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <h1 className="text-2xl font-bold">Learning Hub</h1>
-      <p className="text-gray-400 text-sm">Contextual AI explanations — adapted to your level</p>
+  const byCategory = CONCEPTS.reduce((acc, c) => {
+    (acc[c.category] = acc[c.category] || []).push(c);
+    return acc;
+  }, {} as Record<string, typeof CONCEPTS>);
 
-      {nextTopic?.recommended_topic && (
-        <div
-          className="card border border-blue-500/40 cursor-pointer hover:border-blue-400 transition-colors"
+  return (
+    <div className="max-w-[1400px] mx-auto px-4 py-8 fade-in">
+      <div className="mb-6">
+        <h1 className="section-title">Learning Hub</h1>
+        <p className="section-subtitle">Context-aware explanations adapted to your level</p>
+      </div>
+
+      {nextTopic?.recommended_topic && !selected && (
+        <button
           onClick={() => setSelected(nextTopic.recommended_topic)}
+          className="card-sm w-full text-left flex items-center justify-between mb-6 hover:border-[#444] transition-colors"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-blue-400 font-semibold mb-1">RECOMMENDED NEXT</div>
-              <div className="font-semibold">{nextTopic.topic_display}</div>
-              <div className="text-xs text-gray-400">
-                {nextTopic.concepts_remaining_at_level} concepts remaining at {nextTopic.user_level} level
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0">
+              <Sparkles size={14} className="text-black" />
             </div>
-            <ChevronRight className="text-blue-400" />
+            <div>
+              <p className="text-[10px] text-[#888] uppercase tracking-widest mb-0.5">Recommended Next</p>
+              <p className="font-semibold">{nextTopic.topic_display}</p>
+              <p className="text-xs text-[#555]">{nextTopic.concepts_remaining_at_level} concepts remaining at {nextTopic.user_level} level</p>
+            </div>
           </div>
-        </div>
+          <ChevronRight size={16} className="text-[#555]" />
+        </button>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Concept list */}
-        <div className="space-y-2">
-          <div className="card-header">Concepts</div>
-          {CONCEPTS.map((c) => (
-            <button
-              key={c.key}
-              onClick={() => setSelected(c.key)}
-              className={`w-full card text-left flex items-center justify-between hover:border-blue-500/50 transition-colors ${
-                selected === c.key ? "border-blue-500" : ""
-              }`}
-            >
-              <div>
-                <div className="font-medium text-sm">{c.label}</div>
-                <div className="text-xs text-gray-500">{c.category}</div>
+        <div className="space-y-4">
+          {Object.entries(byCategory).map(([cat, concepts]) => (
+            <div key={cat}>
+              <p className="label mb-2">{cat}</p>
+              <div className="space-y-1">
+                {concepts.map(c => (
+                  <button
+                    key={c.key}
+                    onClick={() => setSelected(c.key)}
+                    className={`w-full card-sm text-left flex items-center justify-between hover:border-[#444] transition-all ${selected===c.key?"border-white bg-[#1a1a1a]":""}`}
+                  >
+                    <span className="text-sm font-medium">{c.label}</span>
+                    <ChevronRight size={14} className="text-[#555]" />
+                  </button>
+                ))}
               </div>
-              <ChevronRight size={16} className="text-gray-500" />
-            </button>
+            </div>
           ))}
         </div>
 
-        {/* Explanation panel */}
+        {/* Explanation */}
         <div className="lg:col-span-2">
           {!selected ? (
-            <div className="card h-64 flex items-center justify-center text-gray-500 flex-col gap-2">
-              <BookOpen size={32} />
-              <p>Select a concept to get an AI-powered explanation</p>
+            <div className="card flex flex-col items-center justify-center py-20 text-center">
+              <BookOpen size={32} className="text-[#333] mb-3" />
+              <p className="text-[#555] text-sm">Select a concept to get an AI-powered contextual explanation</p>
             </div>
           ) : (
-            <div className="card">
-              {/* Ticker context input */}
-              <div className="flex gap-2 mb-4">
+            <div className="card space-y-4">
+              {/* Context ticker */}
+              <div className="flex gap-2">
                 <input
-                  type="text"
-                  placeholder="Optional: enter ticker for live context (e.g. AAPL)"
-                  value={tickerInput}
-                  onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  value={ticker}
+                  onChange={e => setTicker(e.target.value.toUpperCase())}
+                  placeholder="Optional: add ticker for live context (e.g. AAPL)"
+                  className="input flex-1"
                 />
+                {ticker && <button onClick={() => setTicker("")} className="btn-secondary px-3 text-xs">Clear</button>}
               </div>
 
               {explaining ? (
-                <div className="text-gray-400 text-sm animate-pulse">Generating explanation...</div>
+                <div className="space-y-3">{[100,85,70,90,60].map(w=><div key={w} className="skeleton h-3 rounded" style={{width:`${w}%`}}/>)}</div>
               ) : explanation ? (
                 <>
-                  <h2 className="text-lg font-bold mb-1">{explanation.full_name}</h2>
-                  <div className="flex gap-2 mb-4">
-                    <span className="badge-neutral">{explanation.category}</span>
-                    <span className="badge-neutral">{explanation.user_level}</span>
-                    {explanation.context_ticker && (
-                      <span className="bg-blue-900/40 text-blue-400 text-xs px-2 py-0.5 rounded-full">
-                        {explanation.context_ticker} context
-                      </span>
-                    )}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-xl font-bold">{explanation.full_name}</h2>
+                      {ticker && <span className="badge-blue">{ticker} context</span>}
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="badge-neutral">{explanation.category}</span>
+                      <span className="badge-neutral">{explanation.user_level}</span>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                    {explanation.explanation}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-4">{explanation.disclaimer}</p>
+                  <div className="ai-box whitespace-pre-wrap">{explanation.explanation}</div>
+                  <p className="text-[10px] text-[#3a3a3a]">{explanation.disclaimer}</p>
                 </>
               ) : null}
             </div>

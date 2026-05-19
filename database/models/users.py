@@ -173,3 +173,19 @@ class AlertLog(Base):
     ai_narration: Mapped[str | None] = mapped_column(Text, nullable=True)
     fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PortfolioRiskSnapshot(Base):
+    __tablename__ = "portfolio_risk_snapshots"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"))
+    snapshot_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    total_value: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
+    beta: Mapped[float | None] = mapped_column(Numeric(8, 4), nullable=True)
+    var_95: Mapped[float | None] = mapped_column(Numeric(8, 4), nullable=True)
+    sector_weights: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    correlation_risk: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    health_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

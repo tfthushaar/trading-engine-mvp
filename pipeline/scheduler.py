@@ -1,4 +1,4 @@
-"""
+﻿"""
 APScheduler-based market data scheduler.
 
 Schedules:

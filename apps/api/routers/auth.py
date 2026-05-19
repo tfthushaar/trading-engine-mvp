@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +24,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
@@ -44,6 +48,7 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
     )
     db.add(user)
     await db.flush()
+    await db.commit()
 
     token_data = {"sub": str(user.user_id)}
     return TokenResponse(
@@ -68,11 +73,11 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(refresh_token: str):
-    payload = decode_token(refresh_token)
-    if payload.get("type") != "refresh":
+async def refresh(body: RefreshRequest):
+    token_payload = decode_token(body.refresh_token)
+    if token_payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid token type")
-    token_data = {"sub": payload["sub"]}
+    token_data = {"sub": token_payload["sub"]}
     return TokenResponse(
         access_token=create_access_token(token_data),
         refresh_token=create_refresh_token(token_data),

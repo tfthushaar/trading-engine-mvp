@@ -190,3 +190,42 @@ async def get_user_alerts(user_id: str) -> dict:
         "alert_count": len(all_alerts),
         "alerts": sorted(all_alerts, key=lambda x: x.get("severity", ""), reverse=True),
     }
+
+
+async def scan_all_watchlists() -> dict:
+    """
+    Scan every watchlist in the system and publish alerts.
+    Called by the scheduler every minute during market hours.
+    """
+    from apps.api.database import AsyncSessionLocal
+    from database.models.users import Watchlist
+    from sqlalchemy import select
+    import json
+    import redis.asyncio as aioredis
+    from apps.api.config import get_settings
+
+    settings = get_settings()
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Watchlist))
+        watchlists = result.scalars().all()
+
+    total_alerts = 0
+    r = aioredis.from_url(settings.redis_url, decode_responses=True)
+
+    for wl in watchlists:
+        for ticker in (wl.tickers or []):
+            alerts = await scan_ticker(ticker)
+            for alert in alerts:
+                total_alerts += 1
+                # Push alert to the watchlist owner's Redis channel
+                await r.publish(f"alerts:{wl.user_id}", json.dumps({
+                    "ticker": ticker,
+                    "type": alert.get("type"),
+                    "severity": alert.get("severity"),
+                    "message": alert.get("narration", ""),
+                    "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+                }))
+
+    await r.aclose()
+    return {"watchlists_scanned": len(watchlists), "alerts_fired": total_alerts}

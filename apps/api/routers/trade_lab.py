@@ -44,8 +44,8 @@ class MonteCarloRequest(BaseModel):
 @router.get("/templates")
 async def get_strategy_templates():
     """Return the 5 canonical strategy templates from the existing engine."""
-    from core.strategy_engine.strategy_templates import STRATEGY_TEMPLATES
-    return {"templates": list(STRATEGY_TEMPLATES.keys())}
+    from core.strategy_engine.strategy_templates import TEMPLATES
+    return {"templates": list(TEMPLATES.keys())}
 
 
 @router.post("/strategies", status_code=201)

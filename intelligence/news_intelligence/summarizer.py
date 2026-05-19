@@ -1,4 +1,4 @@
-"""
+﻿"""
 News Intelligence Engine — 7-step pipeline per article.
 
 Steps:
@@ -90,7 +90,7 @@ async def get_ticker_news_intelligence(ticker: str) -> dict:
     try:
         from core.data_ingestion.news_collector import NewsCollector
         collector = NewsCollector()
-        raw = collector.fetch_news(ticker)
+        raw = collector.fetch_articles(ticker)
         articles = raw if isinstance(raw, list) else []
     except Exception:
         pass
@@ -98,7 +98,7 @@ async def get_ticker_news_intelligence(ticker: str) -> dict:
     # Step 3: FinBERT sentiment (reuse existing)
     sentiment_scores = []
     try:
-        from core.sentiment_engine.news_sentiment import analyze_headlines
+        from core.sentiment_engine import analyze_headlines
         headlines = [a.get("title", "") for a in articles[:10] if a.get("title")]
         if headlines:
             sentiment_scores = analyze_headlines(headlines)

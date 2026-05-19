@@ -1,4 +1,4 @@
-import type { Config } from "tailwindcss";
+﻿import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: [
@@ -9,10 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        gray: {
-          850: "#1a2035",
-          950: "#0d1117",
-        },
+        bg: "#0a0a0a",
+        surface: "#111111",
+        "surface-2": "#1a1a1a",
+        border: "#2a2a2a",
+      },
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+      },
+      borderRadius: {
+        "2xl": "16px",
+        "3xl": "24px",
       },
     },
   },
