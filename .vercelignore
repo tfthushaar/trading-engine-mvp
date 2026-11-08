@@ -1,0 +1,10 @@
+.venv
+.venv-research
+research
+tests
+.pytest_cache
+.ruff_cache
+**/__pycache__
+.env
+.env.*
+status.md

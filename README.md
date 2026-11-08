@@ -1,366 +1,198 @@
-# AI Market Intelligence OS
+# Trading Engine
 
-**An AI-powered market analysis and trader decision-support platform.**
+**Market intelligence powered by neural networks, built from first principles.**
 
-> For educational and informational purposes only. Not financial advice.  
-> All trading involves significant risk of loss.
+Trading Engine is a public web platform that helps anyone understand what is happening in the markets and what the evidence suggests. An ensemble of four neural networks (LSTM, GRU, temporal CNN and Transformer) scores the next five trading days for any stock or ETF. Every forecast comes with its historical reliability, an uncertainty band and an explanation of which inputs drove it. Around that core sit TradingView-style charts, rule-based strategy baselines, portfolio and journal tools, and a plain-language AI analyst.
 
----
+The deep-learning engine is written **from scratch in NumPy**: every layer, every backward pass and every optimiser. It is verified two ways: numerical gradient checks, and exact agreement with PyTorch reference implementations.
 
-## What This Is
+Live: https://trading-engine-mocha.vercel.app
 
-A complete platform that helps active traders understand markets, analyze trade setups, monitor risk, and improve trading discipline — through AI-assisted market interpretation, real-time alerts, and contextual learning.
-
-**This is NOT:**
-- An autonomous trading bot
-- A "guaranteed prediction" system
-- Financial advice
-
-**This IS:**
-- An AI co-pilot that reduces cognitive overload
-- A contextual education system
-- A trade quality evaluator
-- A real-time market intelligence feed
-- A behavioral coaching tool
+> Research and education only. Nothing on the platform is financial advice.
 
 ---
 
-## Features
+## What you can do
 
-### Dashboard
-- AI-generated pre-market briefings (Claude claude-sonnet-4-6)
-- Real-time macro instrument ticker bar (SPY, QQQ, VIX, DXY, 10Y)
-- Sector heatmap with dynamic intensity coloring
-- Top gainers/losers (click to navigate to ticker)
-- Live watchlist alert feed
+| Area | What it offers |
+|---|---|
+| **Overview** | Macro strip (indices, VIX, yields, dollar, gold, oil, bitcoin), an AI market briefing grounded in the day's data, neural-ensemble breadth, a sector board with a rule-based regime, movers, your watchlists with model signals, and a live alert feed. |
+| **Markets** | A sector heatmap you can colour by the day's move or by the neural model's tilt, plus macro and breadth. |
+| **Signals** | A screener of the ensemble's 5-day outlook for 48 liquid US stocks and ETFs, your watchlist, or any symbols you enter. It shows the confidence decile, the historical hit rate of that decile, member agreement and Monte Carlo dropout uncertainty, next to a classic RSI and EMA rule baseline. You can export it to CSV. |
+| **Symbol pages** | A TradingView-style chart with range presets from 1D to MAX, interval selection from 1 minute to 1 month, candles, line or area, SMA, EMA, Bollinger, VWAP, volume, RSI and MACD panes, and a **neural probability pane**. Alongside it: the ensemble forecast with gradient-based attribution ("why"), an AI read, news with sentiment and severity, technicals, a trade-plan evaluator and a five-strategy competition. |
+| **Lab** | Train an LSTM, GRU, TCN, Transformer, MLP or linear model live on any symbol and timeframe (hourly, daily, weekly). You see learning curves, out-of-sample metrics against baselines, a confusion matrix, calibration, a backtest, saliency heatmaps, permutation importance, attention maps and an MC-dropout forecast. The **Arena** trains several architectures on the same split and ranks them against rule strategies. The **Model card** documents the pretrained ensemble. |
+| **Strategies** | Five rule-based agents compete across a watchlist. A no-code rule builder lets you combine indicators with comparisons and crossovers, add stops and targets, and run a backtest with trade markers and a block-bootstrap Monte Carlo. The trade evaluator grades an entry, stop and target from 0 to 100. |
+| **Portfolio** | P&L, sector exposure, value at risk and CVaR, beta, volatility, drawdown, a correlation heatmap, a health score with AI commentary, and the model's view on every holding. |
+| **Journal** | Log trades with emotions and rule adherence. The model's reading at entry is saved with each trade, so you can see whether trades **with** the model beat trades **against** it. You also get behavioural pattern detection (revenge trading, overtrading, winner cutting, stops not honoured), a discipline score, AI post-trade reviews and monthly coaching. |
+| **Analyst** | Ask in plain language. A router sends each question to one of nine specialists: market, news, symbol, neural model, strategy, trade review, risk, portfolio or education. The specialist gathers live data and model output before a language model writes the answer. |
+| **Learn** | 23 concepts across deep learning and markets, explained at three levels. Explanations can use a live symbol's readings or your own Lab run as the example. The section includes an adaptive "next topic" and a full methodology write-up. |
 
-### Watchlist & Notifications
-- Build watchlists from 20+ popular stocks or search any ticker
-- Real-time WebSocket notifications per user (Redis pub/sub)
-- AI-narrated alerts: volume spikes, breakouts, large price moves, options anomalies
-- Buy/sell signal scanner (RSI + EMA based, with mandatory disclaimer)
-- Notification center with unread count and severity levels
-
-### AI Analyst (Multi-Agent Chat)
-- Natural language market research
-- LangGraph orchestration routes queries to the right specialist:
-  - **News Agent** — news events and market-moving headlines
-  - **Market Analyst Agent** — sector trends, macro, market regime
-  - **Trade Reviewer Agent** — trade setup evaluation in natural language
-  - **Risk Agent** — position sizing, portfolio risk
-  - **Portfolio Agent** — diversification, correlation analysis
-  - **Educational Agent** — explains any trading concept at your level
-- Full conversation history with agent attribution
-
-### Strategy Competition (Multi-Agent)
-- 5 independent strategy agents compete on any ticker:
-  1. RSI Mean Reversion
-  2. EMA Trend Following
-  3. Bollinger Band Breakout
-  4. MACD Momentum
-  5. Volume + Price Composite
-- Concurrent backtesting with realistic commissions and slippage
-- Ranked by risk-adjusted return (Sharpe ratio)
-- AI coach interprets why the winner worked for that specific ticker
-- Run on single ticker or entire watchlist at once
-
-### Ticker Intelligence
-- Live quote with price and change
-- AI analysis summary (Claude claude-sonnet-4-6)
-- 6-month custom SVG price chart
-- News intelligence: AI-narrated sentiment, severity, affected sectors
-- Trade setup evaluator with R:R, technical signals, risk warnings
-
-### Trade Lab
-- **Evaluator**: Input ticker + entry/stop/target → 0–100 score with letter grade
-- **Strategy Builder**: No-code drag-and-drop strategy creator
-- **Backtester**: Async Celery backtest with real commission modeling
-- Monte Carlo simulation for strategy risk assessment
-
-### Portfolio Brain
-- Add positions and track real-time P&L
-- Sector exposure bar chart
-- Risk metrics: VaR (95%), CVaR, beta vs SPY, max drawdown, annual volatility
-- Correlation matrix heatmap
-- AI portfolio health assessment
-
-### Trade Journal
-- Log every trade with emotion tracking and rule adherence
-- AI post-trade review (auto-generated after closing a position)
-- Behavioral pattern detection: revenge trading, winner cutting, overtrading, FOMO entry
-- Monthly discipline score (0–100) with AI coaching report
-
-### Learning Hub
-- Contextual AI explanations adapated to your level (beginner/intermediate/advanced)
-- 7 core concepts with detailed breakdowns
-- Optional ticker context: "explain RSI using current AAPL readings"
-- Adaptive curriculum — recommends next topic based on history
-
-### Explore
-- Sector heatmap and top movers
-- Search any ticker for quick quote
-- Click any ticker to open full intelligence view
+There are no accounts. Watchlists, portfolio, journal, experiments and conversations stay in your browser, and the server analyses them without storing them.
 
 ---
 
-## Tech Stack
+## The deep-learning core
 
-### Backend
-| Component | Technology |
-|---|---|
-| API Framework | FastAPI + Uvicorn |
-| Database (user data) | PostgreSQL 16 + SQLAlchemy 2.0 (async) |
-| Database (analytics) | DuckDB (existing pipeline) |
-| Cache + Pub/Sub | Redis 7 |
-| Task Queue | Celery |
-| Scheduler | APScheduler (IST timezone) |
-| Migrations | Alembic |
-| Vector DB | ChromaDB |
+### A neural-network library written from scratch
 
-### AI / ML
-| Component | Technology |
-|---|---|
-| Primary LLM | Claude claude-sonnet-4-6 (Anthropic) |
-| Fallback LLM | GPT-4o (OpenAI) |
-| Fast routing | Claude Haiku (low-latency agent routing) |
-| NLP Sentiment | FinBERT (ProsusAI) |
-| Entity extraction | spaCy |
-| Agent orchestration | LangGraph + LangChain |
-| ML models | XGBoost, PyTorch (LSTM), Prophet, GARCH |
-| Explainability | SHAP |
+`backend/dl/nn/` implements, with explicit forward and backward passes:
 
-### Frontend
-| Component | Technology |
-|---|---|
-| Framework | Next.js 14 (App Router) |
-| Styling | Tailwind CSS (custom B&W design system) |
-| State (server) | TanStack Query |
-| Charts | Custom SVG (price) + Recharts (analytics) |
-| Icons | Lucide React |
-| Fonts | Inter + JetBrains Mono |
+- **Layers:** Dense, ReLU, LeakyReLU, Tanh, Sigmoid, GELU, Dropout (inverted, and Monte Carlo at inference), LayerNorm, Flatten, global average pooling, last-timestep pooling
+- **Sequence models:** LSTM and GRU with backpropagation through time. Gate layouts match PyTorch, so weights are interchangeable.
+- **Convolution:** causal dilated Conv1D via im2col
+- **Attention:** sinusoidal positional encoding and multi-head self-attention (optionally causal), with access to the attention weights
+- **Composition:** Sequential and Residual containers
+- **Training:** BCE-with-logits, MSE and Huber losses; SGD with momentum, Adam and AdamW; global-norm gradient clipping; cosine learning-rate schedule with warm-up; early stopping that restores the best weights; a wall-clock training budget
 
-### Infrastructure
-| Component | Technology |
-|---|---|
-| Containers | Docker + Docker Compose |
-| Reverse Proxy | Nginx |
-| CI/CD | GitHub Actions |
-| Monitoring | Prometheus + Grafana + Sentry |
+### Verified two independent ways
 
----
+1. **Numerical gradient checks.** Every layer and every full architecture is checked against central finite differences. A negative control (a backward pass that is deliberately off by 1%) must fail. See `tests/test_nn_gradients.py`.
+2. **Parity with PyTorch.** `research/torch_models.py` re-implements all six architectures in PyTorch. Given the same weights, the NumPy engine and PyTorch autograd agree on outputs, input gradients and every parameter gradient to 1e-10. See `research/test_parity.py`.
 
-## Data Sources
+### Architectures
 
-| Type | Source | Cost |
+| Model | Family | Idea |
 |---|---|---|
-| Live prices + WebSocket | Polygon.io | $29/mo |
-| EOD prices | Yahoo Finance (yfinance) | Free |
-| News | NewsAPI + Benzinga | Free – $99/mo |
-| Options chain | Tradier | $30/mo |
-| Earnings calendar | Financial Modeling Prep | Free tier |
-| Macro indicators | FRED (Federal Reserve) | Free |
-| Institutional holdings | SEC EDGAR 13F | Free |
-| Insider trades | SEC EDGAR Form 4 | Free |
-| Social sentiment | Reddit + StockTwits | Free |
-| Sector ETFs | Yahoo Finance | Free |
+| Linear | Baseline | Logistic or linear regression on the flattened window. The bar every network must clear. |
+| MLP | Feed-forward | Stacked dense layers with dropout. |
+| LSTM / GRU | Recurrent | Gated memory across the input window. |
+| TCN | Convolutional | Causal convolutions with dilations 1, 2, 4, 8 and residual blocks. |
+| Transformer | Attention | Pre-norm encoder blocks with multi-head self-attention. |
 
----
+### Data pipeline without look-ahead
 
-## Project Structure
+- Features are scale-free: log returns over 1, 5 and 20 bars, intraday range and body, a volume z-score, RSI, MACD histogram, distance from moving averages, realised volatility, ATR, Bollinger position, and optionally S&P 500 momentum and the VIX level.
+- Splits are chronological: train, then validation, then test. Nothing is shuffled across time.
+- Standardisation statistics are fitted on training rows only.
+- An **embargo** removes samples whose forward-looking labels would overlap the next split.
 
-```
-trading-engine-mvp/
-├── apps/
-│   ├── api/                    # FastAPI backend
-│   │   ├── routers/            # 10 route groups
-│   │   ├── websockets/         # WebSocket: prices, alerts
-│   │   ├── middleware/         # auth, rate limiting, audit
-│   │   └── tasks/              # Celery tasks (5 modules)
-│   └── web/                    # Next.js 14 frontend
-│       ├── app/                # 10 pages (App Router)
-│       └── components/         # Shared UI + intelligence components
-│
-├── core/                       # Preserved original 6-phase pipeline
-│   ├── data_ingestion/         # 9 collectors (stock, news, macro, social,
-│   │                           #   options, earnings, insider, institutional, watchlist)
-│   ├── sentiment_engine/       # FinBERT NLP
-│   ├── research_agent/         # LLM hypothesis generation
-│   ├── strategy_engine/        # 5-template strategy builder
-│   ├── backtesting_engine/     # Custom Python backtester
-│   └── explainability_engine/  # SHAP decision attribution
-│
-├── intelligence/               # AI interpretation layer (NEW)
-│   ├── news_intelligence/      # 7-step news pipeline
-│   ├── trade_quality/          # Trade scorer (0-100)
-│   ├── market_narrative/       # Daily briefings, sector summaries
-│   └── watchlist_intelligence/ # Real-time anomaly detection
-│
-├── agents/                     # Multi-agent system (NEW)
-│   ├── orchestrator.py         # LangGraph routing
-│   ├── *_agent.py              # 6 specialist agents
-│   └── strategy_competition/   # 5-strategy competition engine
-│       ├── strategies.py       # Strategy signal functions
-│       └── competition_runner.py # Parallel backtest orchestrator
-│
-├── ml/                         # ML models (NEW)
-│   ├── feature_engineering.py  # 20+ technical features
-│   ├── regime_detector.py      # XGBoost market regime classifier
-│   ├── ensemble.py             # Probabilistic ensemble forecaster
-│   └── forecasters/            # XGBoost, LSTM, Prophet
-│
-├── portfolio/                  # Portfolio brain (NEW)
-├── behavioral/                 # Behavioral intelligence (NEW)
-├── education/                  # Contextual learning (NEW)
-├── pipeline/                   # Scheduler + event bus (NEW)
-├── database/                   # SQLAlchemy models + Alembic migrations
-└── infra/                      # Docker, Nginx configs
-```
+### The pretrained ensemble
 
----
+An LSTM, GRU, TCN and Transformer were trained offline in PyTorch on a panel of 48 liquid US stocks and ETFs, exported to the NumPy format, and are served by the from-scratch engine. PyTorch is not used at runtime.
 
-## Quick Start
-
-### 1. Clone and setup
-
-```bash
-git clone https://github.com/tfthushaar/trading-engine-mvp.git
-cd trading-engine-mvp
-cp .env.example .env
-# Fill in your API keys in .env
-```
-
-### 2. Required API Keys
-
-| Key | Get From | Required |
+| | Period | Samples |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | console.anthropic.com | Yes (AI features) |
-| `NEWS_API_KEY` | newsapi.org | Yes (news feed) |
-| `FRED_API_KEY` | fred.stlouisfed.org | Yes (macro data) |
-| `OPENAI_API_KEY` | platform.openai.com | Optional (fallback) |
-| `POLYGON_API_KEY` | polygon.io | Optional (live prices) |
-| `TRADIER_API_KEY` | developer.tradier.com | Optional (options) |
-| `FMP_API_KEY` | financialmodelingprep.com | Optional (earnings) |
+| Train | Mar 2012 to Dec 2021 | 118,523 |
+| Validation | Jan 2022 to Dec 2023 | 23,808 |
+| Test (held out) | Jan 2024 to Oct 2026 | 34,128 |
 
-**Tip:** You can also enter API keys directly in the browser at `/settings/api-keys` — they're stored locally and never sent to the server.
+Held-out test results for predicting whether the close is higher in five trading days:
 
-### 3. Start with Docker
+| Model | Params | Accuracy | ROC AUC | Log loss | NumPy vs PyTorch |
+|---|---|---|---|---|---|
+| LSTM | 12,145 | 55.2% | 0.523 | 0.6878 | 7e-8 |
+| GRU | 9,265 | 55.2% | 0.520 | 0.6877 | 6e-8 |
+| TCN | 10,721 | 55.0% | 0.525 | 0.6870 | 7e-8 |
+| Transformer | 17,665 | 55.1% | 0.530 | 0.6881 | 8e-8 |
+| **Ensemble** | | **55.2%** | **0.529** | **0.6870** | |
+| Base rate (always "up") | | 55.1% | 0.500 | 0.6888 | |
 
-```bash
-docker compose up --build
+Accuracy barely beats always guessing "up", because the market rose in 55% of five-day windows. The useful information is in the **ranking**. Readings in the top confidence decile were followed by a rise **61.3%** of the time, with an average five-day return of **+0.70%**. The bottom decile rose 52.8% of the time, averaging +0.06%. Calibration error (ECE) is 0.020. The product therefore labels signals by decile and always shows the historical hit rate next to the base rate, instead of presenting raw probabilities as predictions.
+
+As an equal-weight portfolio rule over the test period (hold a stock only when its ensemble probability is at least 0.55), the model had a Sharpe ratio of 1.38 with a −17.0% maximum drawdown and 12.3% volatility. Buy-and-hold had a Sharpe of 1.46, a −18.8% drawdown and 14.4% volatility. In other words, the model gave slightly smoother returns and slightly lower risk-adjusted returns in a strong bull market. That is an honest result, and it is reported as such.
+
+### Interpretability
+
+- **Gradient × input attribution:** for today's forecast on every symbol page, and as a time-by-feature saliency map in the Lab.
+- **Permutation importance:** the rise in test loss when one feature is shuffled.
+- **Attention maps:** for Transformer runs.
+- **Uncertainty:** Monte Carlo dropout bands and agreement between ensemble members.
+
+---
+
+## Language models
+
+Narratives (briefings, symbol reads, news classification, alert narration, coaching, the analyst and explanations) are written by a language model that only describes the data and model output passed to it. A block of authoritative facts keeps prices, moves and dates correct, and every feature has a deterministic fallback, so the platform works without any key.
+
+- **Default:** a shared Groq key (`openai/gpt-oss-120b`), rate limited per visitor and per instance.
+- **Bring your own key:** Groq, Google Gemini or Anthropic Claude, set in Settings. The key is stored in your browser and sent only with your own requests. The server uses it for that request and never stores or logs it.
+
+---
+
+## Architecture
+
+```
+Browser (Next.js 16, React 19, Tailwind 4, TradingView Lightweight Charts)
+   |  same origin: /api/*
+   v
+Vercel Python function  api/index.py  ->  FastAPI  backend/app.py
+   |-- backend/dl/          NumPy neural networks, data pipeline, training, evaluation, pretrained ensemble
+   |-- backend/market/      Yahoo Finance access with batching and caching, indicators, regime, scanners
+   |-- backend/strategies/  backtest engine, rule strategies and rule language, Monte Carlo, trade evaluator
+   |-- backend/ai/          multi-provider LLM client, briefings, analyst agents, education
+   |-- backend/portfolio.py, backend/journal.py   stateless analytics
+   '-- backend/routers/     HTTP endpoints (OpenAPI docs at /api/docs)
+
+research/  (offline, not deployed)
+   PyTorch reference models, ensemble training and export, parity tests
 ```
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:3000 |
-| API + Swagger | http://localhost:8000/api/docs |
-| ChromaDB | http://localhost:8001 |
+Everything is stateless on the server, so it runs on serverless infrastructure with no database. Rate limits protect the shared AI key and the training endpoints.
 
-### 4. Start without Docker (development)
+---
+
+## Running locally
+
+Requirements: Python 3.12 and Node.js 20 or later.
 
 ```bash
 # Backend
-pip install -r requirements.txt
-uvicorn apps.api.main:app --reload
+python -m venv .venv
+.venv/Scripts/pip install -r requirements-dev.txt      # macOS/Linux: .venv/bin/pip
+cp .env.example .env                                    # add GROQ_API_KEY (optional)
 
 # Frontend
-cd apps/web
 npm install
+
+# Run both (Next.js on :3000 proxies /api to FastAPI on :8000)
 npm run dev
-
-# Worker (optional — for backtesting)
-celery -A apps.api.celery_app worker --loglevel=info
-
-# Scheduler (optional — for automated data collection)
-python -m pipeline.scheduler
 ```
 
----
+On macOS or Linux, change the `api` script in `package.json` to use `.venv/bin/python`.
 
-## Pages
+Tests:
 
-| Route | Feature |
-|---|---|
-| `/dashboard` | AI briefing, macro bar, sector heatmap, alerts |
-| `/explore` | Search tickers, top movers, sector overview |
-| `/watchlist` | Build watchlists, real-time notifications, signal scanner |
-| `/ticker/[symbol]` | Intelligence, chart, news, trade evaluator |
-| `/ai-analyst` | Natural language market research chat |
-| `/trade-lab` | Trade evaluator, strategy builder, backtester |
-| `/competition` | 5-agent strategy competition on any ticker |
-| `/portfolio` | Portfolio analysis, risk metrics, correlation |
-| `/learn` | Contextual AI explanations, adaptive curriculum |
-| `/journal` | Trade journal, behavioral analysis, discipline score |
-| `/settings/api-keys` | Enter API keys (stored in browser) |
-| `/login` | Authentication |
-| `/register` | Create account + disclaimer acknowledgment |
+```bash
+.venv/Scripts/python -m pytest -q                       # gradient checks and core logic (40 tests)
+# Research environment (PyTorch CPU) for parity tests and retraining:
+python -m venv .venv-research
+.venv-research/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv-research/Scripts/pip install -r research/requirements.txt
+.venv-research/Scripts/python -m pytest research/test_parity.py -q
+.venv-research/Scripts/python -m research.train_global --epochs 12 --years 15   # about 2-3 minutes on CPU
+```
 
----
+## Deploying
 
-## API Endpoints
+The repository deploys to Vercel as a single project: Next.js for the interface and a Python function for the API. Set `GROQ_API_KEY` (and optionally `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`) in the project's environment variables, then run:
 
-Full interactive documentation at `/api/docs` (Swagger UI).
+```bash
+vercel deploy --prod
+```
 
-Key endpoint groups:
-- `GET /api/market/*` — live quotes, history, sector data, movers
-- `POST /api/intelligence/trade/evaluate` — trade quality scorer
-- `GET /api/intelligence/briefing/daily` — AI pre-market briefing
-- `POST /api/agents/chat` — multi-agent natural language chat
-- `POST /api/competition/run/{ticker}` — strategy competition
-- `POST /api/competition/run-watchlist` — watchlist competition
-- `POST /api/watchlist/alerts/signals` — buy/sell signal scanner
-- `GET /api/portfolio/analysis` — AI portfolio report
-- `GET /api/journal/behavioral-report` — behavioral coaching report
-- `GET /api/learn/explain/{concept}` — contextual education
+## Project structure
 
----
+```
+app/            pages: overview, markets, signals, symbol/[symbol], lab, strategies, portfolio, journal, analyst, learn, settings
+components/     UI kit, SVG charts, TradingView price chart, app shell (search, alerts, theme)
+lib/            API client, local storage, formatting, indicator math
+api/index.py    Vercel entry point
+backend/        FastAPI application and all analytics (see Architecture)
+research/       PyTorch reference implementation, training and export, parity tests
+tests/          gradient checks and unit tests
+```
 
-## Security
+## Limitations
 
-- JWT authentication (15-minute access tokens, 7-day refresh)
-- Redis-backed rate limiting (100/1000/10000 req/hr by tier)
-- Audit logging on all requests
-- API keys stored in browser localStorage only (never sent to server)
-- All AI outputs include mandatory financial disclaimer
+- Results come from one historical period. Market behaviour changes, and the edge is small.
+- Free market data can be delayed, revised or briefly unavailable.
+- Backtests ignore taxes, borrow costs and market impact.
+- Language-model narratives can still be wrong; the numbers on the page are the source of truth.
 
----
+## Credits
 
-## Compliance
-
-This platform provides AI-generated market analysis for **educational and informational purposes only**.
-
-- Does not constitute financial advice or investment recommendations
-- Does not facilitate order execution or broker connectivity
-- Users must acknowledge disclaimer at registration
-- All AI outputs carry mandatory disclaimer text
-- Position sizing and trade decisions remain entirely with the user
-
----
-
-## Roadmap
-
-- [ ] Phase 4: ML model training pipeline (XGBoost regime, LSTM price patterns)
-- [ ] Phase 5: LangGraph agent memory persistence (ChromaDB RAG)
-- [ ] Phase 6: Mobile-responsive PWA
-- [ ] Phase 7: Broker API integration (paper trading only)
-- [ ] Phase 8: Options chain visualization and Greeks analysis
-- [ ] Phase 9: Multi-user collaboration and shared watchlists
-- [ ] Phase 10: Production Kubernetes deployment on AWS/GCP
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/your-feature`)
-3. Commit with conventional commits (`feat:`, `fix:`, `docs:`)
-4. Open a pull request
-
----
+Market data from Yahoo Finance via yfinance. Charts by [TradingView Lightweight Charts](https://www.tradingview.com/lightweight-charts/).
 
 ## License
 
-MIT License — See `LICENSE` file.
-
----
-
-*Built on top of the original [KernelLex/trading-engine](https://github.com/KernelLex/trading-engine) research platform.*
+MIT

@@ -1,0 +1,4 @@
+# Offline research environment: PyTorch reference models, ensemble training and parity tests.
+# pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r research/requirements.txt
+-r ../requirements.txt
+pytest
