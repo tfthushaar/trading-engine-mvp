@@ -16,6 +16,14 @@ from backend.market import data as md
 from backend.strategies import engine
 
 EVAL_DEADLINE_S = 70.0  # the serverless function is killed at 90 s
+MAX_EVALUATION_S = 45.0
+ATTENTION_MEMORY_BYTES = 200e6  # budget for stored attention matrices, on a function with 2 GB in total
+
+
+def attention_batch_limit(params: dict, window: int) -> int:
+    """Largest batch whose attention matrices (batch x heads x window^2, per layer) stay inside the memory budget."""
+    per_sample = params["heads"] * window * window * params["layers"] * 8
+    return max(4, int(ATTENTION_MEMORY_BYTES / per_sample))
 
 DISCLAIMER = (
     "Research output from statistical models trained on historical prices. Not financial advice. "
@@ -98,8 +106,6 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
     cost_bps = float(min(max(cfg.get("cost_bps", 5.0), 0.0), 50.0))
     long_short = bool(cfg.get("long_short", False))
     tcfg = train_config(cfg.get("train"))
-    if arch == "transformer":  # attention stores B x heads x T x T per layer, so large batches can exhaust memory
-        tcfg.batch_size = min(tcfg.batch_size, 128)
 
     interval = cfg.get("interval", "1d")
     ds = load_dataset(symbol, cfg.get("period", "10y"), window, horizon, task, cfg.get("features"), interval)
@@ -108,6 +114,24 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
 
     model, arch_params = build_model(arch, window, F, cfg.get("arch_params"), seed=tcfg.seed)
     summary = summarize(model, window, F)
+    sample = 256
+    if arch == "transformer":  # training also holds gradients of the same shape, hence the smaller batch there
+        limit = attention_batch_limit(arch_params, window)
+        model.eval_batch = min(128, limit)
+        tcfg.batch_size = min(tcfg.batch_size, max(4, limit // 3))
+        sample = min(64, limit)
+    # Validation and evaluation are not interruptible, so measure this model and leave them enough time
+    t_probe = time.perf_counter()
+    probe_n = min(getattr(model, "eval_batch", 128), len(ds.X))
+    predict(model, ds.X[:probe_n])
+    per_sample = (time.perf_counter() - t_probe) / probe_n
+    must_run = per_sample * (2 * len(ds.val) + len(ds.test) + 3 * sample)
+    if must_run > MAX_EVALUATION_S:
+        raise ValueError(
+            f"This model would need about {round(must_run)}s just to evaluate, more than the {round(MAX_EVALUATION_S)}s available. "
+            "Reduce the window, layers, heads or history."
+        )
+    tcfg.time_budget_s = max(2.0, min(tcfg.time_budget_s, EVAL_DEADLINE_S - (time.perf_counter() - t_start) - must_run - 6.0))
     fit = train(model, ds, tcfg)
 
     Xte = ds.X[ds.test]
@@ -153,7 +177,6 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
         backtest["metrics"]["linear"] = {**bt_lin["metrics"], "trades": bt_lin["n_trades"]}
 
     # ---- Interpretability ---------------------------------------------------------------------
-    sample = 64 if arch == "transformer" else 256
     t_probe = time.perf_counter()
     sal = ev.saliency(model, Xte, max_samples=sample)
     probe = time.perf_counter() - t_probe
@@ -170,7 +193,7 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
     interp = {
         "saliency": np.round(sal / (sal.max() or 1.0), 4).tolist(),  # (W, F), normalised to [0, 1]
         "feature_importance": importance,
-        "attention": ev.attention_maps(model, Xte),
+        "attention": ev.attention_maps(model, Xte, max_samples=sample),
     }
 
     # ---- Forecast with MC-dropout uncertainty -----------------------------------------------

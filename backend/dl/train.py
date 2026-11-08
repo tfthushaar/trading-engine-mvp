@@ -37,10 +37,11 @@ class TrainConfig:
         return self
 
 
-def predict(model: nn.Layer, X: np.ndarray, training: bool = False, batch: int = 128) -> np.ndarray:
-    """Raw outputs (logits or scaled returns), shape (N,)."""
+def predict(model: nn.Layer, X: np.ndarray, training: bool = False, batch: int | None = None) -> np.ndarray:
+    """Raw outputs (logits or scaled returns), shape (N,). Honours model.eval_batch when a model sets one."""
     if len(X) == 0:
         return np.zeros(0)
+    batch = batch or getattr(model, "eval_batch", 128)
     outs = [model.forward(X[i : i + batch], training=training).reshape(-1) for i in range(0, len(X), batch)]
     return np.concatenate(outs)
 
