@@ -243,7 +243,8 @@ Fixed, with regression tests where testable (49 pytest):
 - 500s on wrong-typed training options and rule values; negative portfolio quantities accepted.
 - Failed Yahoo lookups were cached (5 min, profiles 1 day); quotes up to 5 min stale.
 - CDN cached data-only fallbacks; alert polling spent shared AI quota; repeat prompts now reuse answers.
-- Lab: time budget now checked per batch (limit 40s, function 90s); Transformer memory capped;
+- Lab: time budget checked per batch (limit 40s, function 90s); Transformer memory sized from the model;
+  evaluation cost measured per model, with a clear error when a model cannot finish;
   hourly dates keep their time; the arbitrary "majority class" log loss removed.
 - Backtest trade returns now include exit costs. Trade reviewer now receives the user's plan.
 - Frontend: useApi notifies all subscribers (pages could hang on skeletons after navigating); chart
@@ -254,11 +255,19 @@ Fixed, with regression tests where testable (49 pytest):
 
 Checked and fine: yfinance 1.8 `download` uses a per-call context, so concurrent calls are safe.
 
-## Model improvement (in progress)
+## Model improvement (done, no change shipped)
 
-`research/experiments.py` compares candidates by walk-forward validation on data cut at 2023.
-The 2024+ test set has already been seen once (the v1 report), so it is not fully virgin; do not
-tune against it. v1 backup is kept outside the repo during the work.
+- `research/experiments.py`: 8 candidates, walk-forward validation on data cut at 2023
+  (`research/experiment_results.json`). Spread was small. Chosen by rule: `more_symbols`, the only
+  candidate better than baseline on mean AUC, worst-fold AUC and top-decile hit rate.
+- Candidate v2 (100 training symbols, refit through 2023, 3 seeds per architecture) scored once on
+  test: accuracy 54.3% vs 55.2%, AUC 0.520 vs 0.529, decile spread 3.8 vs 6.9 points, Sharpe 1.12 vs
+  1.38. ECE improved (0.009 vs 0.020). Rejected under the rule set before the run: ship only if not worse.
+- v1 weights and its `research/train_global.py` restored. Do not keep retraining against the 2024+
+  test set; it would only overfit it. The test set was already seen once for the v1 report.
+- Kept: `global_model.py` loads multi-seed manifests; 8 optional extra features are available in the Lab.
+- Likely next step if accuracy matters: new information (earnings, fundamentals, news), not more
+  price-derived features or architectures.
 
 ## Notes for later work
 

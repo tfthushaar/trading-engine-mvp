@@ -91,6 +91,20 @@ Accuracy barely beats always guessing "up", because the market rose in 55% of fi
 
 As an equal-weight portfolio rule over the test period (hold a stock only when its ensemble probability is at least 0.55), the model had a Sharpe ratio of 1.38 with a −17.0% maximum drawdown and 12.3% volatility. Buy-and-hold had a Sharpe of 1.46, a −18.8% drawdown and 14.4% volatility. In other words, the model gave slightly smoother returns and slightly lower risk-adjusted returns in a strong bull market. That is an honest result, and it is reported as such.
 
+### What was tried to improve it
+
+Eight alternatives were compared by walk-forward validation on data cut off at the end of 2023: more features, more training symbols, stronger regularisation, a longer window and combinations of these (`research/experiments.py`). Differences were small, about 0.003 AUC around a 0.517 baseline. The best all-round candidate (100 training symbols, refit through 2023, three seeds per architecture) was then scored once on the test period:
+
+| | Shipped | Candidate |
+|---|---|---|
+| Accuracy | 55.2% | 54.3% |
+| ROC AUC | 0.529 | 0.520 |
+| Top two vs bottom two decile spread | 6.9 points | 3.8 points |
+| Backtest Sharpe | 1.38 | 1.12 |
+| Calibration error (lower is better) | 0.020 | 0.009 |
+
+It was better calibrated but worse at ranking, so it was not shipped. The test period had already been seen once when the shipped model was reported, so these figures are slightly optimistic for both models. Price and volume features alone appear to be close to their limit here; further gains would most likely need different information, such as earnings, fundamentals or news.
+
 ### Interpretability
 
 - **Gradient × input attribution:** for today's forecast on every symbol page, and as a time-by-feature saliency map in the Lab.
@@ -153,7 +167,7 @@ On macOS or Linux, change the `api` script in `package.json` to use `.venv/bin/p
 Tests:
 
 ```bash
-.venv/Scripts/python -m pytest -q                       # gradient checks and core logic (40 tests)
+.venv/Scripts/python -m pytest -q                       # gradient checks and core logic (49 tests)
 # Research environment (PyTorch CPU) for parity tests and retraining:
 python -m venv .venv-research
 .venv-research/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cpu
