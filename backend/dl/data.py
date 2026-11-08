@@ -33,9 +33,17 @@ FEATURES: dict[str, str] = {
     "bb_pos": "Position inside Bollinger bands",
     "mkt_ret_5": "S&P 500 (SPY) 5-day log return",
     "vix": "VIX level (log)",
+    "ret_60": "60-day log return",
+    "high_252_gap": "Distance below the 52-week high",
+    "sma200_gap": "Close / SMA(200) - 1",
+    "vol_ratio": "10-day vs 60-day volatility",
+    "rel_ret_5": "5-day return minus S&P 500",
+    "rel_ret_20": "20-day return minus S&P 500",
+    "mkt_ret_20": "S&P 500 (SPY) 20-day log return",
+    "vix_chg_5": "5-day change in VIX (log)",
 }
 DEFAULT_FEATURES = ["ret_1", "ret_5", "ret_20", "range", "body", "volume_z", "rsi", "macd", "sma20_gap", "sma50_gap", "volatility", "atr"]
-MARKET_FEATURES = {"mkt_ret_5", "vix"}
+MARKET_FEATURES = {"mkt_ret_5", "vix", "rel_ret_5", "rel_ret_20", "mkt_ret_20", "vix_chg_5"}
 
 
 def compute_features(df: pd.DataFrame, market: dict[str, pd.DataFrame] | None = None) -> pd.DataFrame:
@@ -59,13 +67,22 @@ def compute_features(df: pd.DataFrame, market: dict[str, pd.DataFrame] | None = 
     f["volatility"] = r1.rolling(20).std()
     f["atr"] = ind.atr(df) / c
     f["bb_pos"] = (c - bb["mid"]) / (2 * bb["sd"]).replace(0, np.nan)
+    f["ret_60"] = logc.diff(60)
+    f["high_252_gap"] = c / h.rolling(252, min_periods=126).max() - 1.0
+    f["sma200_gap"] = c / c.rolling(200, min_periods=100).mean() - 1.0
+    f["vol_ratio"] = r1.rolling(10).std() / r1.rolling(60).std().replace(0, np.nan)
     if market:
         spy = market.get("SPY")
         if spy is not None and not spy.empty:
-            f["mkt_ret_5"] = np.log(spy["Close"]).diff(5).reindex(f.index).ffill()
+            spy_log = np.log(spy["Close"])
+            f["mkt_ret_5"] = spy_log.diff(5).reindex(f.index).ffill()
+            f["mkt_ret_20"] = spy_log.diff(20).reindex(f.index).ffill()
+            f["rel_ret_5"] = f["ret_5"] - f["mkt_ret_5"]
+            f["rel_ret_20"] = f["ret_20"] - f["mkt_ret_20"]
         vix = market.get("^VIX")
         if vix is not None and not vix.empty:
             f["vix"] = np.log(vix["Close"]).reindex(f.index).ffill()
+            f["vix_chg_5"] = f["vix"].diff(5)
     return f.replace([np.inf, -np.inf], np.nan)
 
 
@@ -161,20 +178,22 @@ def build_dataset(
     else:
         raise ValueError("task must be 'classification' or 'regression'")
 
-    dates = np.array([d.strftime("%Y-%m-%d") for d in feat.index[labelled]])
+    # Intraday bars keep their time of day; otherwise a split boundary would cut off its last session
+    fmt = "%Y-%m-%d %H:%M" if bool((feat.index.normalize() != feat.index).any()) else "%Y-%m-%d"
+    dates = np.array([d.strftime(fmt) for d in feat.index[labelled]])
     latest_row = rows - 1
     return Dataset(
         features=features, window=window, horizon=horizon, task=task,
         X=X, y=y, fwd_ret=fwd_l, next_ret=nxt[labelled], dates=dates, close=cl[labelled],
         train=train, val=val, test=test, mean=mean, std=std, y_scale=y_scale,
         latest_X=np.ascontiguousarray(windows[latest_row - (window - 1)][None]),
-        latest_date=feat.index[latest_row].strftime("%Y-%m-%d"),
+        latest_date=feat.index[latest_row].strftime(fmt),
         latest_close=float(cl[latest_row]),
         meta={
             "rows": rows,
             "samples": n,
-            "first_date": feat.index[0].strftime("%Y-%m-%d"),
-            "last_date": feat.index[-1].strftime("%Y-%m-%d"),
+            "first_date": feat.index[0].strftime(fmt),
+            "last_date": feat.index[-1].strftime(fmt),
             "embargo": emb,
         },
     )

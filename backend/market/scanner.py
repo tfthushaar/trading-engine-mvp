@@ -50,8 +50,9 @@ def _technical_row(sym: str, df: pd.DataFrame) -> dict | None:
 
 
 def technical_scan(symbols: list[str]) -> dict:
-    data = md.histories(symbols, period="1y")
-    rows = [r for s in symbols if (r := _technical_row(s.upper(), data.get(s.upper()))) is not None]
+    syms = md.valid_symbols(symbols)
+    data = md.histories(syms, period="1y")
+    rows = [r for s in syms if (r := _technical_row(s, data.get(s))) is not None]
     rows.sort(key=lambda r: abs(r["score"]), reverse=True)
     return {
         "rows": rows,
@@ -133,7 +134,7 @@ def _alerts_for(sym: str, df: pd.DataFrame, neural: dict | None, with_options: b
 
 
 def alerts(symbols: list[str], with_options: bool = True) -> dict:
-    syms = [md.normalize_symbol(s) for s in symbols][:30]
+    syms = md.valid_symbols(symbols)[:30]
     data = md.histories(syms, period="1y")
     neural: dict[str, dict] = {}
     try:

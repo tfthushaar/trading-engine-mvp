@@ -120,11 +120,20 @@ export function useWatchlist() {
         return w;
       });
     },
+    add: (s: string) => {
+      const u = s.trim().toUpperCase();
+      if (!u) return;
+      update((w) => {
+        const cur = w.lists[active] ?? [];
+        if (!cur.includes(u)) w.lists[active] = [...cur, u].slice(0, 40);
+        return w;
+      });
+    },
     setActive: (name: string) => update((w) => ({ ...w, active: name })),
     create: (name: string, symbols: string[] = []) =>
       update((w) => {
         const n = name.trim().slice(0, 30) || "Untitled";
-        w.lists[n] = Array.from(new Set(symbols.map((s) => s.toUpperCase()))).slice(0, 40);
+        if (!w.lists[n]) w.lists[n] = Array.from(new Set(symbols.map((s) => s.toUpperCase()))).slice(0, 40); // never overwrite a list
         return { ...w, active: n };
       }),
     remove: (name: string) =>

@@ -120,3 +120,82 @@ def test_sanitize_handles_numpy_and_nan():
     out = sanitize({"a": np.float64("nan"), "b": np.bool_(True), "c": np.arange(3), "d": float("inf"), "e": np.int64(4)})
     assert out == {"a": None, "b": True, "c": [0, 1, 2], "d": None, "e": 4}
     assert not any(isinstance(v, float) and math.isnan(v) for v in out.values() if v is not None)
+
+
+def test_valid_symbols_drops_malformed_entries():
+    from backend.market import data as md
+
+    assert md.valid_symbols(["aapl", "BAD!!", "AAPL", " msft ", "", "^VIX", "GC=F"]) == ["AAPL", "MSFT", "^VIX", "GC=F"]
+
+
+def test_failed_lookups_are_not_cached():
+    from backend.market import data as md
+
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        return {} if len(calls) == 1 else {"AAPL": 1}
+
+    assert md.cached("test:flaky", 300, flaky) == {}
+    assert md.cached("test:flaky", 300, flaky) == {"AAPL": 1}
+    assert md.cached("test:flaky", 300, flaky) == {"AAPL": 1}
+    assert len(calls) == 2
+
+
+def test_train_config_rejects_bad_types_with_a_clear_message():
+    from backend.dl.pipeline import train_config
+
+    assert train_config({"epochs": "12", "lr": 0.01, "unknown": 1, "seed": None}).epochs == 12
+    with pytest.raises(ValueError, match="epochs"):
+        train_config({"epochs": "abc"})
+    with pytest.raises(ValueError, match="loss"):
+        train_config({"loss": "nope"})
+
+
+def test_time_budget_stops_inside_an_epoch(monkeypatch):
+    """A fake clock jumps 1s per reading, so a 2s budget must end the very first epoch after a few batches."""
+    import types
+
+    import backend.dl.train as train_module
+
+    ticks = iter(range(100000))
+    monkeypatch.setattr(train_module, "time", types.SimpleNamespace(perf_counter=lambda: float(next(ticks))))
+    ds = build_dataset(synthetic_ohlcv(1200), window=20, horizon=1)
+    model, _ = build_model("mlp", 20, len(ds.features), {"hidden": 8}, seed=0)
+    fit = train(model, ds, TrainConfig(epochs=50, batch_size=8, patience=50, time_budget_s=2.0))
+    assert fit["stopped"] == "time_budget"
+    assert fit["epochs_run"] == 1
+
+
+def test_trade_return_includes_the_exit_cost():
+    res = engine.run_positions(np.array([0.10, 0.0, 0.0]), np.array([1, 0, 0]), cost_bps=100)
+    assert res["n_trades"] == 1
+    assert res["trade_returns"][0] == pytest.approx(0.10 * 0.99 + 0.10 * -0.01 - 0.01 + 0.0, abs=0.02)
+    assert res["trade_returns"][0] < (1.10 - 0.01) - 1  # strictly worse than charging the entry only
+
+
+def test_rule_values_must_be_numbers():
+    df = synthetic_ohlcv()
+    bad = [{"left": {"kind": "price"}, "op": ">", "right": {"kind": "value", "value": None}}]
+    with pytest.raises(ValueError, match="number"):
+        rules.rule_positions(df, bad, [])
+
+
+def test_intraday_dataset_keeps_time_of_day():
+    df = synthetic_ohlcv(1000)
+    df.index = pd.date_range("2025-01-02 09:30", periods=1000, freq="h")
+    ds = build_dataset(df, window=20, horizon=2)
+    assert " " in ds.dates[0] and len(set(ds.dates)) == len(ds.dates)
+
+
+def test_journal_ignores_missing_stop_and_target():
+    e = {"symbol": "A", "direction": "long", "entry_price": 100, "exit_price": 101, "stop_loss": 0, "target": 0, "entry_date": "2026-01-01T10:00", "exit_date": "2026-01-02T10:00"}
+    assert journal.analyze([e])["patterns"] == []
+
+
+def test_portfolio_rejects_short_positions():
+    from backend import portfolio
+
+    with pytest.raises(ValueError, match="positive"):
+        portfolio.analyze([{"symbol": "AAPL", "quantity": -5, "avg_cost": 100}])

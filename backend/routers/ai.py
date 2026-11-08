@@ -5,24 +5,24 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from backend.ai import agents, education, insights
-from backend.http import limit, ok
+from backend.http import limit, ok, ok_ai
 
 router = APIRouter(prefix="/api", tags=["ai"])
 
 
 @router.get("/insights/briefing")
 async def briefing():
-    return ok(await insights.market_briefing(), cache_s=300)
+    return ok_ai(await insights.market_briefing(), 300)
 
 
 @router.get("/insights/ticker/{symbol}")
 async def ticker(symbol: str):
-    return ok(await insights.ticker_brief(symbol), cache_s=300)
+    return ok_ai(await insights.ticker_brief(symbol), 300)
 
 
 @router.get("/insights/news/{symbol}")
 async def news(symbol: str):
-    return ok(await insights.news_read(symbol), cache_s=300)
+    return ok_ai(await insights.news_read(symbol), 300)
 
 
 class ChatRequest(BaseModel):

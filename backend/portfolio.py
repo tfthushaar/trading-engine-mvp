@@ -29,7 +29,9 @@ def analyze(positions: list[dict]) -> dict:
             continue
         qty = float(p.get("quantity") or 0)
         cost = float(p.get("avg_cost") or 0)
-        if qty and cost >= 0:
+        if qty < 0 or cost < 0:
+            raise ValueError(f"{sym}: quantity and cost must be positive (short positions are not supported)")
+        if qty:
             pos.append({"symbol": sym, "quantity": qty, "avg_cost": cost})
     if not pos:
         raise ValueError("add at least one position with a quantity")

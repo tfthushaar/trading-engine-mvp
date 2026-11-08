@@ -127,9 +127,9 @@ async def market_briefing() -> dict:
     for sym in ("SPY", "QQQ", "IWM", "DIA", "^VIX", "^TNX"):
         m = by.get(sym)
         if m:
-            facts.append(f"{m['label']} ({sym}): {m['price']:.2f}, {m['change_pct']:+.2f}% on that session")
+            facts.append(f"{m['label']} ({sym}): {m['price']:.2f}, {_pct(m['change_pct'])} on that session")
     if snap["sectors"]:
-        facts.append(f"Best sector: {snap['sectors'][0]['label']} {snap['sectors'][0]['change_pct']:+.2f}%; worst: {snap['sectors'][-1]['label']} {snap['sectors'][-1]['change_pct']:+.2f}%")
+        facts.append(f"Best sector: {snap['sectors'][0]['label']} {_pct(snap['sectors'][0]['change_pct'])}; worst: {snap['sectors'][-1]['label']} {_pct(snap['sectors'][-1]['change_pct'])}")
     facts.append(f"Breadth among {snap['breadth']['universe']} large caps: {snap['breadth']['advancing']} up, {snap['breadth']['declining']} down")
     context = {
         "as_of": session,
@@ -243,7 +243,7 @@ async def ticker_brief(symbol: str) -> dict:
         "model: 1-2 sentences interpreting the ensemble probability, member agreement, uncertainty and calibration honestly. "
         "consider: 3 practical things a careful person would weigh before acting. risks: 2-3 bullets."
     )
-    result, source = await llm.complete_or(fallback, prompt, system=GROUNDING, effort="low", schema=TICKER_SCHEMA)
+    result, source = await llm.complete_or(fallback, prompt, system=GROUNDING, effort="low", schema=TICKER_SCHEMA, max_tokens=1800)
     out = {
         "symbol": sym, **result, "source": "ai" if source == "ai" else "data", "note": None if source in ("ai", "fallback") else source,
         "technicals": tech, "disclaimer": DISCLAIMER, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -296,7 +296,7 @@ async def news_read(symbol: str) -> dict:
             "tone and impact for the stock overall; summary: 2 sentences on what the news flow is about and why it may matter; "
             "themes: up to 4 short labels; affected_sectors: sectors these stories could move (may be empty); items: the sentiment of each headline by index i."
         )
-        result, source = await llm.complete_or(fallback, prompt, system=GROUNDING, effort="low", schema=NEWS_SCHEMA)
+        result, source = await llm.complete_or(fallback, prompt, system=GROUNDING, effort="low", schema=NEWS_SCHEMA, max_tokens=1800)
     else:
         result, source = fallback, "fallback"
     for row in result.get("items", []):

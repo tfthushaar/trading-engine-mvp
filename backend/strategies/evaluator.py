@@ -15,6 +15,8 @@ def evaluate(symbol: str, entry: float, stop: float, target: float, timeframe: s
     sym = md.normalize_symbol(symbol)
     if min(entry, stop, target) <= 0:
         raise ValueError("entry, stop and target must be positive prices")
+    if target == entry:
+        raise ValueError("the target must differ from the entry")
     direction = "long" if target > entry else "short"
     if (direction == "long" and stop >= entry) or (direction == "short" and stop <= entry):
         raise ValueError(f"for a {direction} trade the stop must be on the other side of the entry from the target")

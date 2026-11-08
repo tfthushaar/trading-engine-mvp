@@ -66,12 +66,13 @@ def snapshot() -> dict:
     for m in movers:
         m["volume_ratio"] = round(m["volume"] / m["avg_volume_20d"], 2) if m["avg_volume_20d"] else None
     adv = sum(1 for m in movers if m["change_pct"] > 0)
-    as_of = max((r["as_of"] for r in q.values()), default=None)
+    # The equity session date: crypto and futures also print on weekends
+    as_of = (q.get("SPY") or {}).get("as_of") or max((r["as_of"] for r in q.values()), default=None)
     return {
         "as_of": as_of,
         "macro": macro,
         "sectors": sectors,
-        "gainers": movers[:6],
-        "losers": movers[::-1][:6],
+        "gainers": [m for m in movers if m["change_pct"] > 0][:6],
+        "losers": [m for m in movers[::-1] if m["change_pct"] < 0][:6],
         "breadth": {"advancing": adv, "declining": len(movers) - adv, "universe": len(movers)},
     }

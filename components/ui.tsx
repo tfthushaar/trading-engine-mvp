@@ -11,10 +11,10 @@ export function Card({ title, right, children, className = "", bodyClass = "card
       {(title || right) && (
         <header className="card-head">
           <div className="card-title flex min-w-0 items-center gap-2">{title}</div>
-          {right && <div className="flex shrink-0 items-center gap-1.5">{right}</div>}
+          {right && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">{right}</div>}
         </header>
       )}
-      <div className={bodyClass}>{children}</div>
+      <div className={`min-w-0 overflow-x-auto ${bodyClass}`}>{children}</div>
     </section>
   );
 }
@@ -43,13 +43,15 @@ export function Seg<T extends string>({ value, options, onChange, disabled }: { 
   );
 }
 
-export function Field({ label, children, hint, className = "" }: { label: string; children: ReactNode; hint?: string; className?: string }) {
+/** `group` renders a div: inside a real label, a click on the gaps of a button group would activate its first button. */
+export function Field({ label, children, hint, className = "", group = false }: { label: string; children: ReactNode; hint?: string; className?: string; group?: boolean }) {
+  const Tag = group ? "div" : "label";
   return (
-    <label className={`block min-w-0 ${className}`}>
+    <Tag className={`block min-w-0 ${className}`}>
       <span className="label">{label}</span>
       {children}
       {hint && <span className="faint mt-0.5 block text-[11px]">{hint}</span>}
-    </label>
+    </Tag>
   );
 }
 

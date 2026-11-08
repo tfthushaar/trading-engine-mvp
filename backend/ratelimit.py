@@ -39,8 +39,8 @@ def hit(bucket: str, limit: int, window_s: float, consume: bool = True) -> None:
             raise RateLimited("rate limit reached", int(q[0] + window_s - now) + 1)
         if consume:
             q.append(now)
-        if len(_events) > 20000:  # bound memory under abuse
-            for k in [k for k, v in _events.items() if not v][:10000]:
+        if len(_events) > 20000:  # bound memory under abuse: drop buckets with no recent activity
+            for k in [k for k, v in _events.items() if not v or v[-1] <= now - 86400]:
                 _events.pop(k, None)
 
 

@@ -111,7 +111,8 @@ export function LineChart({
           ))}
         </div>
       )}
-      <svg ref={ref} width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+      <div className="relative" style={{ height: H }}>
+      <svg ref={ref} width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute left-0 top-0" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
         {ticks(lo, hi).map((t) => (
           <g key={t}>
             <line x1={L} x2={W - R} y1={sy(t)} y2={sy(t)} stroke="var(--line)" strokeWidth="1" />
@@ -137,6 +138,7 @@ export function LineChart({
         ))}
         {hover != null && <line x1={sx(hover)} x2={sx(hover)} y1={T} y2={H - B} stroke="var(--fg-3)" vectorEffect="non-scaling-stroke" />}
       </svg>
+      </div>
       {hover != null && (!legend || series.length === 1) && (
         <div className="pointer-events-none absolute right-1 top-0 rounded bg-panel px-1.5 text-[11px] shadow">
           <span className="faint">{xFormat(x[hover])}</span> <span className="num font-medium">{series[0].values[hover] == null ? "--" : yFormat(series[0].values[hover] as number)}</span>
@@ -199,8 +201,8 @@ export function Bars({ labels, values, height = 140, format = (v: number) => v.t
   const bw = (W / values.length) * 0.7;
   const sy = (v: number) => (1 - (v - lo) / (hi - lo || 1)) * (H - B - 12) + 12;
   return (
-    <div ref={box} className="w-full">
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block">
+    <div ref={box} className="relative w-full" style={{ height: H }}>
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute left-0 top-0">
       {values.map((v, i) => {
         const x = (i + 0.15) * (W / values.length);
         const y0 = sy(Math.max(lo, 0));
@@ -273,8 +275,8 @@ export function Histogram({ counts, edges, height = 110, format = (v: number) =>
   const lo = edges[0];
   const hi = edges[edges.length - 1];
   return (
-    <div ref={box} className="w-full">
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block">
+    <div ref={box} className="relative w-full" style={{ height: H }}>
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute left-0 top-0">
       {counts.map((c, i) => (
         <rect key={i} x={i * bw + 0.5} y={H - 14 - (c / max) * (H - 20)} width={bw - 1} height={(c / max) * (H - 20)} fill={edges[i + 1] <= 0 ? "var(--chart-3)" : "var(--chart-1)"} />
       ))}

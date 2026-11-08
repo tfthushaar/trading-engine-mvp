@@ -112,11 +112,20 @@ def operand_series(df: pd.DataFrame, op: dict) -> pd.Series:
     kind = op.get("kind", "value")
     if kind not in OPERANDS:
         raise ValueError(f"unknown operand {kind!r}")
-    n = int(op.get("period") or OPERANDS[kind].get("default", 14))
+    try:
+        n = int(float(op.get("period") or OPERANDS[kind].get("default", 14)))
+    except (TypeError, ValueError):
+        raise ValueError(f"the period for {OPERANDS[kind]['label']} must be a number") from None
     n = min(max(n, 2), 250)
     c = df["Close"]
     if kind == "value":
-        return pd.Series(float(op.get("value", 0.0)), index=df.index)
+        raw = op.get("value")
+        if raw is None or raw == "":
+            raise ValueError("enter a number for every Value condition")
+        try:
+            return pd.Series(float(raw), index=df.index)
+        except (TypeError, ValueError):
+            raise ValueError("enter a number for every Value condition") from None
     if kind == "price":
         return c
     if kind == "sma":

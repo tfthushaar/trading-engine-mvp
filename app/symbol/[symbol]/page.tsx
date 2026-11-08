@@ -71,7 +71,7 @@ function ChartPanel({ symbol }: { symbol: string }) {
       <ErrorBox error={error} onRetry={reload} />
       {loading && <Skeleton h={height} className="rounded-none" />}
       {data && data.bars.length > 0 && (
-        <PriceChart bars={data.bars} type={prefs.chartType} indicators={prefs.indicators} intraday={data.intraday} model={wantModel ? model : undefined} height={height} theme={theme} />
+        <PriceChart bars={data.bars} type={prefs.chartType} indicators={prefs.indicators} intraday={data.intraday} model={wantModel ? model : undefined} height={height} theme={theme} resetKey={`${symbol}:${data.range}:${data.interval}`} />
       )}
       {data && !data.bars.length && <Empty title="No bars for this timeframe" />}
       {data && <div className="faint border-t border-line px-2.5 py-1 text-[10.5px]">{data.bars.length} bars · {INTERVAL_LABELS[data.interval]} · range high {price(data.high)} low {price(data.low)} {data.intraday ? "· times in exchange local time" : ""}</div>}
@@ -164,7 +164,7 @@ function News({ symbol }: { symbol: string }) {
       <p className="text-[12.5px]">{data.summary}</p>
       <div className="divide-y divide-line">
         {data.articles.map((a: any, i: number) => (
-          <a key={i} href={a.url} target="_blank" rel="noreferrer" className="flex items-start justify-between gap-3 py-1.5 hover:bg-bg-2">
+          <a key={i} href={/^https?:/i.test(a.url ?? "") ? a.url : undefined} target="_blank" rel="noreferrer" className="flex items-start justify-between gap-3 py-1.5 hover:bg-bg-2">
             <span className="min-w-0"><span className="block text-[12.5px] font-medium leading-snug">{a.title}</span><span className="faint text-[11px]">{a.source} · {ago(a.published_at)}</span></span>
             <span className={`pill shrink-0 ${a.sentiment === "positive" ? "pill-solid" : a.sentiment === "negative" ? "pill-outline" : "pill-soft"}`}>{a.sentiment}</span>
           </a>

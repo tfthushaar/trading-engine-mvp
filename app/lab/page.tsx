@@ -31,6 +31,18 @@ const DEFAULT_CONFIG: Config = {
 };
 interface Experiment { id: string; at: number; config: Config; result: any }
 
+/** Rule curves are thinned for long windows, so match by date (carrying the last value) instead of by position. */
+function alignTo(dates: string[], own: string[], values: (number | null)[]): (number | null)[] {
+  const out: (number | null)[] = [];
+  let j = 0;
+  let last: number | null = null;
+  for (const d of dates) {
+    while (j < own.length && own[j] <= d) last = values[j++] ?? last;
+    out.push(last);
+  }
+  return out;
+}
+
 /* ---------------------------------------------------------------------------------------------- */
 function ConfigPanel({ cfg, setCfg, opts, compact = false }: { cfg: Config; setCfg: (c: Config) => void; opts: any; compact?: boolean }) {
   const arch = opts?.architectures?.[cfg.arch];
@@ -49,7 +61,7 @@ function ConfigPanel({ cfg, setCfg, opts, compact = false }: { cfg: Config; setC
             <option value="regression">Return (magnitude)</option>
           </select>
         </Field>
-        <Field label="Bar size">
+        <Field label="Bar size" group>
           <Seg value={cfg.interval} onChange={(v) => set({ interval: v, period: opts?.intervals?.[v]?.periods?.[v === "1h" ? 4 : 2] ?? cfg.period })} options={Object.entries(opts?.intervals ?? { "1d": { label: "1 day" } }).map(([k, v]: any) => ({ value: k, label: v.label.replace("1 ", "") }))} />
         </Field>
         <Field label="History">
@@ -103,7 +115,7 @@ function ConfigPanel({ cfg, setCfg, opts, compact = false }: { cfg: Config; setC
           <Field label="Patience"><input className="input num" type="number" value={cfg.train.patience} onChange={(e) => setTrain("patience", n(e.target.value))} /></Field>
           <Field label="Clip norm"><input className="input num" type="number" step="0.1" value={cfg.train.clip_norm} onChange={(e) => setTrain("clip_norm", Number(e.target.value))} /></Field>
           <Field label="Seed"><input className="input num" type="number" value={cfg.train.seed} onChange={(e) => setTrain("seed", n(e.target.value))} /></Field>
-          <Field label="Time budget (s)" className="col-span-3" hint="Training stops when the budget is used; the best epoch is kept."><input className="input num" type="number" min={2} max={50} value={cfg.train.time_budget_s} onChange={(e) => setTrain("time_budget_s", n(e.target.value))} /></Field>
+          <Field label="Time budget (s)" className="col-span-3" hint="Training stops when the budget is used; the best epoch is kept."><input className="input num" type="number" min={2} max={40} value={cfg.train.time_budget_s} onChange={(e) => setTrain("time_budget_s", n(e.target.value))} /></Field>
         </div>
       </details>
       <details className="rounded-lg border border-line">
@@ -138,7 +150,7 @@ function Results({ r }: { r: any }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 rounded-[10px] border border-line bg-panel p-3 sm:grid-cols-3 xl:grid-cols-6">
-        <Stat label={cls ? "Test accuracy" : "Directional acc."} value={rate(cls ? m.accuracy : m.directional_accuracy)} sub={cls ? `base rate ${rate(b.majority_class?.accuracy)}` : `IC ${num(m.ic, 3)}`} strong />
+        <Stat label={cls ? "Test accuracy" : "Directional acc."} value={rate(cls ? m.accuracy : m.directional_accuracy)} sub={cls ? `base rate ${rate(b.train_base_rate?.accuracy)}` : `IC ${num(m.ic, 3)}`} strong />
         <Stat label={cls ? "ROC AUC" : "R2 vs zero"} value={num(cls ? m.auc : m.r2_vs_zero, 3)} sub={b.linear ? `linear ${num(cls ? b.linear.auc : b.linear.r2_vs_zero, 3)}` : "0.5 = no skill"} />
         <Stat label="Strategy Sharpe" value={num(bt.metrics.model.sharpe)} sub={`buy and hold ${num(bt.metrics.buy_hold.sharpe)}`} />
         <Stat label="Strategy return" value={fpct(bt.metrics.model.total_return)} sub={`buy and hold ${fpct(bt.metrics.buy_hold.total_return)}`} />
@@ -150,7 +162,7 @@ function Results({ r }: { r: any }) {
           <LineChart x={h.epoch} series={[{ name: "Train loss", values: h.train_loss }, { name: "Validation loss", values: h.val_loss, dash: "4 3" }]} height={170} yFormat={(v) => v.toFixed(4)} />
           <div className="mt-2 grid grid-cols-2 gap-3">
             <LineChart x={h.epoch} series={[{ name: cls ? "Train acc" : "Train dir.", values: h.train_metric }, { name: cls ? "Val acc" : "Val dir.", values: h.val_metric, dash: "4 3" }]} height={110} yFormat={(v) => v.toFixed(3)} />
-            <LineChart x={h.epoch} series={[{ name: "Learning rate", values: h.lr }, { name: "Grad norm", values: h.grad_norm.map((g: number) => g * Math.max(...h.lr) / Math.max(...h.grad_norm, 1e-9)), dash: "1 3" }]} height={110} yFormat={(v) => v.toExponential(1)} />
+            <LineChart x={h.epoch} series={[{ name: "Learning rate", values: h.lr }, { name: "Grad norm (scaled)", values: h.grad_norm.map((g: number) => g * Math.max(...h.lr) / Math.max(...h.grad_norm, 1e-9)), dash: "1 3" }]} height={110} yFormat={(v) => v.toExponential(1)} />
           </div>
         </Card>
         <Card title="Test metrics vs baselines" right={<span className="faint text-[11px]">{r.data.splits.test.start} to {r.data.splits.test.end} · n={r.data.splits.test.n}</span>} bodyClass="p-0">
@@ -393,6 +405,7 @@ function ArenaTab({ opts, initialSymbol }: { opts: any; initialSymbol?: string }
     return rows.sort((a, b) => (b.sharpe ?? -9) - (a.sharpe ?? -9));
   }, [state, rules, archs]);
   const first = Object.values(state).find((s) => s.result)?.result;
+  const chartDates: string[] = board.find((r) => r.kind === "Neural")?.dates ?? board[0]?.dates ?? [];
   return (
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-[340px_1fr]">
       <Card title="Arena setup">
@@ -441,8 +454,8 @@ function ArenaTab({ opts, initialSymbol }: { opts: any; initialSymbol?: string }
             </Card>
             <Card title="Equity on the test window">
               <LineChart
-                x={board.find((r) => r.kind === "Neural")?.dates ?? board[0].dates}
-                series={board.filter((r) => r.kind !== "Rule").slice(0, 6).map((r, i) => ({ name: r.name, values: r.equity, dash: r.kind === "Benchmark" ? "2 2" : undefined, width: i === 0 ? 2 : 1.4 }))}
+                x={chartDates}
+                series={[...board.filter((r) => r.kind !== "Rule").slice(0, 6), ...board.filter((r) => r.kind === "Rule").slice(0, 1)].map((r, i) => ({ name: r.kind === "Rule" ? `${r.name} (best rule)` : r.name, values: alignTo(chartDates, r.dates, r.equity), dash: r.kind === "Benchmark" ? "2 2" : r.kind === "Rule" ? "6 2 1 2" : undefined, width: i === 0 ? 2 : 1.4 }))}
                 height={240}
                 yFormat={(v) => v.toFixed(2)}
                 xFormat={(d) => String(d).slice(0, 7)}

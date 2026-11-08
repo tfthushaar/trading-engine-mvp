@@ -148,6 +148,7 @@ def build_context(agent: str, syms: list[str], text: str, portfolio_positions: l
 
         plan = parse_trade(text)
         try:
+            ctx["plan_from_user"] = plan
             ctx["evaluation"] = evaluator.evaluate(syms[0], plan["entry"], plan["stop"], plan["target"])
         except Exception as exc:
             ctx["evaluation_error"] = str(exc)

@@ -1,7 +1,7 @@
 "use client";
 import {
   AreaSeries, CandlestickSeries, ColorType, createChart, createSeriesMarkers, CrosshairMode, HistogramSeries, LineSeries, LineStyle,
-  type IChartApi, type ISeriesApi, type SeriesMarker, type Time, type UTCTimestamp,
+  type IChartApi, type ISeriesApi, type LogicalRange, type SeriesMarker, type Time, type UTCTimestamp,
 } from "lightweight-charts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { compact, price as fmtPrice } from "@/lib/format";
@@ -25,7 +25,7 @@ function css(name: string) {
  * Up candles hollow, down candles solid. Overlays and lower panes are toggled by `indicators`.
  */
 export function PriceChart({
-  bars, type = "candles", indicators = [], intraday = false, model, markers, height = 420, theme,
+  bars, type = "candles", indicators = [], intraday = false, model, markers, height = 420, theme, resetKey,
 }: {
   bars: Bar[];
   type?: "candles" | "line" | "area";
@@ -35,10 +35,13 @@ export function PriceChart({
   markers?: TradeMarker[];
   height?: number;
   theme?: string;
+  /** The user's zoom and pan survive redraws while this stays the same (symbol + timeframe). */
+  resetKey?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const mainRef = useRef<ISeriesApi<any> | null>(null);
+  const viewRef = useRef<{ key?: string; range: LogicalRange | null }>({ range: null });
   const [legend, setLegend] = useState<{ o?: number; h?: number; l?: number; c?: number; v?: number; chg?: number; time?: string } | null>(null);
   const last = bars[bars.length - 1];
 
@@ -53,7 +56,7 @@ export function PriceChart({
     const bg = css("--panel");
     const chart = createChart(el.current, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: bg }, textColor: fg3, fontSize: 11, fontFamily: getComputedStyle(document.body).fontFamily, panes: { separatorColor: line, separatorHoverColor: line, enableResize: true } },
+      layout: { attributionLogo: false, background: { type: ColorType.Solid, color: bg }, textColor: fg3, fontSize: 11, fontFamily: getComputedStyle(document.body).fontFamily, panes: { separatorColor: line, separatorHoverColor: line, enableResize: true } },
       grid: { vertLines: { color: line, style: LineStyle.Solid, visible: false }, horzLines: { color: line } },
       rightPriceScale: { borderColor: line, scaleMargins: { top: 0.08, bottom: 0.08 } },
       timeScale: { borderColor: line, timeVisible: intraday, secondsVisible: false, rightOffset: 3, minBarSpacing: 1 },
@@ -99,7 +102,8 @@ export function PriceChart({
     let pane = 1;
     if (indicators.includes("rsi")) {
       const r = chart.addSeries(LineSeries, { color: fg, lineWidth: 1, priceLineVisible: false }, pane);
-      r.setData(bars.map((b, i) => { const v = rsi(closes)[i]; return v == null ? { time: t(b) } : { time: t(b), value: v }; }));
+      const rsiValues = rsi(closes);
+      r.setData(bars.map((b, i) => { const v = rsiValues[i]; return v == null ? { time: t(b) } : { time: t(b), value: v }; }));
       r.createPriceLine({ price: 70, color: fg3, lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false });
       r.createPriceLine({ price: 30, color: fg3, lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false });
       pane++;
@@ -147,12 +151,14 @@ export function PriceChart({
         time: new Date((param.time as number) * 1000).toISOString().slice(0, intraday ? 16 : 10).replace("T", " "),
       });
     });
-    chart.timeScale().fitContent();
+    if (resetKey && viewRef.current.key === resetKey && viewRef.current.range) chart.timeScale().setVisibleLogicalRange(viewRef.current.range);
+    else chart.timeScale().fitContent();
     return () => {
+      viewRef.current = { key: resetKey, range: chart.timeScale().getVisibleLogicalRange() };
       chart.remove();
       chartRef.current = null;
     };
-  }, [bars, type, indicators, intraday, model, markers, height, closes, theme]);
+  }, [bars, type, indicators, intraday, model, markers, height, closes, theme, resetKey]);
 
   const show = legend ?? (last ? { o: last.o, h: last.h, l: last.l, c: last.c, v: last.v } : null);
   return (

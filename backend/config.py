@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     llm_shared_per_ip_10min: int = 8
 
     # Compute budgets for model training endpoints (per client IP, per instance)
-    train_per_ip_10min: int = 20
+    train_per_ip_10min: int = 40
 
     # CORS: only needed when the API is called from another origin (the bundled UI is same-origin)
     allowed_origins: str = "*"

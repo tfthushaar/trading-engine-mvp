@@ -25,15 +25,19 @@ _cache: dict[str, tuple[float, Any]] = {}
 _lock = threading.Lock()
 
 
-def cached(key: str, ttl: float, fn: Callable[[], Any]) -> Any:
+def cached(key: str, ttl: float | Callable[[Any], float], fn: Callable[[], Any], keep: Callable[[Any], bool] = bool) -> Any:
+    """Memoise fn(). Results rejected by `keep` (empty by default) are not stored, so a failed upstream call is retried."""
     now = time.time()
     with _lock:
         hit = _cache.get(key)
         if hit and hit[0] > now:
             return hit[1]
     value = fn()
+    if not keep(value):
+        return value
+    seconds = ttl(value) if callable(ttl) else ttl
     with _lock:
-        _cache[key] = (now + ttl, value)
+        _cache[key] = (now + seconds, value)
         if len(_cache) > 512:  # crude bound on memory
             for k in sorted(_cache, key=lambda k: _cache[k][0])[:128]:
                 _cache.pop(k, None)
@@ -92,13 +96,28 @@ def normalize_symbol(symbol: str) -> str:
     return s
 
 
-def histories(symbols: list[str], period: str = "1y", interval: str = "1d") -> dict[str, pd.DataFrame]:
+def valid_symbols(symbols: list[str]) -> list[str]:
+    """Normalised, de-duplicated symbols with malformed entries dropped, so one typo cannot fail a whole list."""
+    out: list[str] = []
+    for s in symbols:
+        try:
+            n = normalize_symbol(s)
+        except MarketDataError:
+            continue
+        if n not in out:
+            out.append(n)
+    return out
+
+
+def histories(symbols: list[str], period: str = "1y", interval: str = "1d", ttl: float | None = None) -> dict[str, pd.DataFrame]:
     """OHLCV for many symbols with a single batched request (cached per symbol set)."""
-    syms = sorted({normalize_symbol(s) for s in symbols})
+    syms = sorted(valid_symbols(symbols))
     if not syms:
         return {}
     key = f"hist:{','.join(syms)}:{period}:{interval}"
-    return cached(key, _ttl_for(interval), lambda: _download(syms, period, interval))
+    full = ttl if ttl is not None else _ttl_for(interval)
+    # A partial answer usually means Yahoo throttled some symbols, so keep it only briefly
+    return cached(key, lambda v: full if len(v) == len(syms) else min(full, 20.0), lambda: _download(syms, period, interval))
 
 
 def history(symbol: str, period: str = "5y", interval: str = "1d") -> pd.DataFrame:
@@ -111,7 +130,7 @@ def history(symbol: str, period: str = "5y", interval: str = "1d") -> pd.DataFra
 
 def quotes(symbols: list[str]) -> dict[str, dict]:
     """Latest price and day change from daily bars (today's bar updates intraday)."""
-    data = histories(symbols, period="1mo", interval="1d")
+    data = histories(symbols, period="1mo", interval="1d", ttl=30.0)
     out = {}
     for sym, df in data.items():
         if len(df) < 2:
@@ -185,7 +204,7 @@ def profile(symbol: str) -> dict:
             "low_52w": info.get("fiftyTwoWeekLow"),
         }
 
-    return cached(f"profile:{sym}", 86400, run)
+    return cached(f"profile:{sym}", 86400, run, keep=lambda v: v.get("name") != sym or bool(v.get("sector")))
 
 
 def news(symbol: str, limit: int = 10) -> list[dict]:

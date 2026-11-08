@@ -98,6 +98,7 @@ body {
   }
   .card-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
@@ -212,6 +213,8 @@ body {
   }
   .seg {
     display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
     padding: 2px;
     gap: 2px;
     border-radius: 8px;
@@ -252,6 +255,10 @@ body {
     color: var(--fg-2);
     background: var(--panel);
     white-space: nowrap;
+  }
+  .chip:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
   .chip[data-on="true"] {
     background: var(--invert-bg);

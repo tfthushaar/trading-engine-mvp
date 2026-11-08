@@ -236,6 +236,30 @@ multiple watchlists, ⌘K and Settings.
   `.env` and the Vercel env var, then redeploy.
 - [ ] The ensemble needs periodic retraining; weights were trained on data through Oct 2026.
 
+## Bug pass (2026-11-08)
+
+Fixed, with regression tests where testable (49 pytest):
+- One malformed symbol failed whole lists (quotes, scan, alerts, competition).
+- 500s on wrong-typed training options and rule values; negative portfolio quantities accepted.
+- Failed Yahoo lookups were cached (5 min, profiles 1 day); quotes up to 5 min stale.
+- CDN cached data-only fallbacks; alert polling spent shared AI quota; repeat prompts now reuse answers.
+- Lab: time budget now checked per batch (limit 40s, function 90s); Transformer memory capped;
+  hourly dates keep their time; the arbitrary "majority class" log loss removed.
+- Backtest trade returns now include exit costs. Trade reviewer now receives the user's plan.
+- Frontend: useApi notifies all subscribers (pages could hang on skeletons after navigating); chart
+  keeps zoom across refreshes; add-symbol no longer toggles; cancel/duplicate watchlist fixed;
+  label-wrapped segmented controls; RSI O(n^2); Arena curves aligned by date; phone-width overflow.
+- Branding removed per user: no TE mark, no favicon, no TradingView chart logo (the license needs
+  attribution, so the footer links to TradingView).
+
+Checked and fine: yfinance 1.8 `download` uses a per-call context, so concurrent calls are safe.
+
+## Model improvement (in progress)
+
+`research/experiments.py` compares candidates by walk-forward validation on data cut at 2023.
+The 2024+ test set has already been seen once (the v1 report), so it is not fully virgin; do not
+tune against it. v1 backup is kept outside the repo during the work.
+
 ## Notes for later work
 
 - `next dev` writes `AGENTS.md`, which says to read `node_modules/next/dist/docs/` before changing

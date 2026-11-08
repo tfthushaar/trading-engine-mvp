@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { Card, ErrorBox, Markdown, PageHeader, Seg, Skeleton, SourceTag, Spinner } from "@/components/ui";
 import { api, useApi } from "@/lib/api";
@@ -79,17 +79,19 @@ function LearnInner() {
     return g;
   }, [concepts, q]);
   const next = concepts.find((c) => !st.viewed[c.id]);
-  const explain = async (id: string, sym?: string) => {
+  const latest = useRef(0);
+  const explain = async (id: string, sym?: string, level = st.level) => {
+    const ticket = ++latest.current; // a slower earlier answer must not replace a newer one
     setSelected(id);
     setLoading(true);
     setErr(null);
     setSt({ ...st, viewed: { ...st.viewed, [id]: Date.now() } });
     try {
-      setResult(await api("/api/learn/explain", { body: { concept: id, level: st.level, symbol: sym || null, experiment: experiment && sp.get("concept") === id ? experiment : null } }));
+      setResult(await api("/api/learn/explain", { body: { concept: id, level, symbol: sym || null, experiment: experiment && sp.get("concept") === id ? experiment : null } }).then((r) => (ticket === latest.current ? r : result)));
     } catch (e: any) {
-      setErr(e.message);
+      if (ticket === latest.current) setErr(e.message);
     } finally {
-      setLoading(false);
+      if (ticket === latest.current) setLoading(false);
     }
   };
   useEffect(() => {
@@ -102,7 +104,7 @@ function LearnInner() {
       <PageHeader
         title="Learn"
         subtitle="The deep-learning methods behind the product and the market concepts it uses, explained at your level."
-        right={<><Seg value={tab} onChange={setTab} options={[{ value: "concepts", label: "Concepts" }, { value: "method", label: "How it works" }]} /><Seg value={st.level} onChange={(v) => setSt({ ...st, level: v })} options={["beginner", "intermediate", "advanced"].map((l) => ({ value: l, label: l[0].toUpperCase() + l.slice(1) }))} /></>}
+        right={<><Seg value={tab} onChange={setTab} options={[{ value: "concepts", label: "Concepts" }, { value: "method", label: "How it works" }]} /><Seg value={st.level} onChange={(v) => { setSt({ ...st, level: v }); if (selected) explain(selected, symbol, v); }} options={["beginner", "intermediate", "advanced"].map((l) => ({ value: l, label: l[0].toUpperCase() + l.slice(1) }))} /></>}
       />
       <ErrorBox error={error} />
       {tab === "method" ? <Methodology /> : (

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { FlaskConical, Play, Plus, Trash2 } from "lucide-react";
 import { Bars, Histogram, LineChart, TONES } from "@/components/charts";
 import { EvaluatorView } from "@/components/evaluator";
@@ -16,6 +16,11 @@ import { useWatchlist } from "@/lib/store";
 function CompetitionTab() {
   const wl = useWatchlist();
   const [symbols, setSymbols] = useState(wl.list.join(","));
+  const edited = useRef(false);
+  const listKey = wl.list.join(",");
+  useEffect(() => {
+    if (!edited.current) setSymbols(listKey); // the saved watchlist only becomes readable after hydration
+  }, [listKey]);
   const [period, setPeriod] = useState("2y");
   const [slip, setSlip] = useState(2);
   const comp = useAction((body: any, signal) => api("/api/strategies/competition", { body, signal }));
@@ -24,7 +29,7 @@ function CompetitionTab() {
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-[320px_1fr]">
       <Card title="Five strategy agents">
         <div className="space-y-2">
-          <Field label="Symbols" hint={`Defaults to your "${wl.active}" watchlist`}><textarea className="input" rows={3} value={symbols} onChange={(e) => setSymbols(e.target.value.toUpperCase())} /></Field>
+          <Field label="Symbols" hint={`Defaults to your "${wl.active}" watchlist`}><textarea className="input" rows={3} value={symbols} onChange={(e) => { edited.current = true; setSymbols(e.target.value.toUpperCase()); }} /></Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Period"><select className="select" value={period} onChange={(e) => setPeriod(e.target.value)}>{["1y", "2y", "5y", "10y"].map((p) => <option key={p}>{p}</option>)}</select></Field>
             <Field label="Slippage (bps)"><input className="input num" type="number" value={slip} onChange={(e) => setSlip(Number(e.target.value))} /></Field>
@@ -142,7 +147,7 @@ function BuilderTab() {
   const bt = useAction((body: any, signal) => api("/api/strategies/backtest", { body, signal }));
   const r = bt.data;
   const chartRange = r ? (r.interval === "1d" ? (["1y", "2y", "5y", "10y", "max"].includes(r.period) ? r.period : "5y") : r.period) : null;
-  const { data: chart } = useApi<any>(r ? `/api/market/chart/${r.symbol}?range=${chartRange}&interval=${r.interval}` : null, { staleMs: 600_000 });
+  const { data: chart } = useApi<any>(r ? `/api/market/chart/${encodeURIComponent(r.symbol)}?range=${chartRange}&interval=${r.interval}` : null, { staleMs: 600_000 });
   const markers = useMemo(() => r?.trades?.flatMap((t: any) => [{ t: toTs(t.entry), kind: "entry" as const }, { t: toTs(t.exit), kind: "exit" as const }]) ?? [], [r]);
   const periods: string[] = catalog?.intervals?.[interval] ?? [];
   const applyPreset = (name: string) => {
@@ -249,7 +254,7 @@ function EvaluatorTab() {
           <Field label="Symbol">
             <div className="flex gap-1">
               <input className="input font-semibold" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} />
-              <button type="button" className="btn" onClick={async () => { const q = await api(`/api/market/quotes?symbols=${symbol}`); const p = q?.[symbol]?.price; if (p) setForm({ entry: p.toFixed(2), stop: (p * 0.95).toFixed(2), target: (p * 1.1).toFixed(2) }); }}>Use price</button>
+              <button type="button" className="btn" onClick={async () => { const q = await api(`/api/market/quotes?symbols=${encodeURIComponent(symbol)}`); const p = q?.[symbol]?.price; if (p) setForm({ entry: p.toFixed(2), stop: (p * 0.95).toFixed(2), target: (p * 1.1).toFixed(2) }); }}>Use price</button>
             </div>
           </Field>
         }

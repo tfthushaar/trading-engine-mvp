@@ -74,7 +74,9 @@ def run_positions(next_returns: np.ndarray, positions: np.ndarray, cost_bps: flo
             entry = None
     if entry is not None:
         trades.append((entry, len(pos)))
-    trade_returns = [float(np.prod(1.0 + strat[a:b]) - 1.0) for a, b in trades]
+    # The exit cost lands on bar b, outside strat[a:b], so charge it to the trade being closed
+    exit_cost = cost_bps / 1e4
+    trade_returns = [float(np.prod(1.0 + strat[a:b]) * (1.0 - (exit_cost * abs(pos[a]) if b < len(pos) else 0.0)) - 1.0) for a, b in trades]
     wins = [x for x in trade_returns if x > 0]
     losses = [-x for x in trade_returns if x < 0]
     pf = (sum(wins) / sum(losses)) if losses else None

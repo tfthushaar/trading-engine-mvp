@@ -14,9 +14,11 @@ Resolution per request:
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -106,6 +108,16 @@ def _charge_shared_budget() -> None:
         ) from exc
 
 
+# Identical prompts (same data, same provider and model) within this window reuse the answer and spend no quota
+_ANSWER_TTL_S = 600.0
+_answers: dict[str, tuple[float, Any]] = {}
+
+
+def _answer_key(t: Target, messages: list[dict], system: str | None, schema: dict | None) -> str:
+    payload = json.dumps([t.provider, t.model, system, messages, schema], sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 _THINK = re.compile(r"<think>.*?</think>", re.S)
 
 
@@ -127,9 +139,11 @@ def _conform(data: dict, schema: dict) -> dict:
     """Light validation: fill missing required keys with empty values of the right type."""
     out = dict(data)
     for k in schema.get("required", []):
+        typ = schema["properties"].get(k, {}).get("type")
         if k not in out or out[k] is None:
-            typ = schema["properties"].get(k, {}).get("type")
             out[k] = [] if typ == "array" else "" if typ == "string" else None
+        elif typ == "array" and not isinstance(out[k], list):  # looser JSON modes may return a single value
+            out[k] = [out[k]]
         enum = schema["properties"].get(k, {}).get("enum")
         if enum and out[k] not in enum:
             out[k] = enum[-1] if "neutral" not in enum else "neutral"
@@ -161,6 +175,7 @@ async def _openai_compatible(t: Target, messages: list[dict], system: str | None
                 body.pop("reasoning_effort", None)
                 body.pop("include_reasoning", None)
                 body.pop("reasoning_format", None)
+                body["max_tokens"] = body.pop("max_completion_tokens", max_tokens)
                 if schema:
                     body["response_format"] = {"type": "json_object"}
                     body["messages"] = msgs[:-1] + [{
@@ -232,16 +247,23 @@ async def complete(
     t = resolve()
     if t is None:
         return None
+    messages = prompt if isinstance(prompt, list) else [{"role": "user", "content": prompt}]
+    key = _answer_key(t, messages, system, schema)
+    hit = _answers.get(key)
+    if hit and hit[0] > time.time():
+        return hit[1]
     if t.shared:
         _charge_shared_budget()
-    messages = prompt if isinstance(prompt, list) else [{"role": "user", "content": prompt}]
     if t.provider == "anthropic":
         text = await _anthropic(t, messages, system, effort, max_tokens, schema)
     else:
         text = await _openai_compatible(t, messages, system, effort, max_tokens, schema)
-    if schema:
-        return _conform(_parse_json(text), schema)
-    return text
+    result = _conform(_parse_json(text), schema) if schema else text
+    if len(_answers) > 256:
+        _answers.clear()
+    if result:
+        _answers[key] = (time.time() + _ANSWER_TTL_S, result)
+    return result
 
 
 async def complete_or(fallback: Any, prompt: str | list[dict], **kw) -> tuple[Any, str]:

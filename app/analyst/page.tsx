@@ -58,7 +58,7 @@ export default function AnalystPage() {
 
   return (
     <div>
-      <PageHeader title="Analyst" subtitle="Ask in plain language. A router picks one of nine specialists, which gathers live data and model output before answering." />
+      <PageHeader title="Analyst" subtitle="Ask in plain language. A router picks one of nine specialists, which gathers live data and model output before answering." right={active && <button className="btn lg:hidden" onClick={() => setActiveId(null)}><MessageSquarePlus size={13} />New chat</button>} />
       <div className="grid h-[calc(100vh-170px)] min-h-[480px] grid-cols-1 gap-3 lg:grid-cols-[240px_1fr]">
         <aside className="card hidden min-h-0 flex-col lg:flex">
           <div className="card-head"><span className="card-title">Conversations</span><button className="btn btn-sm btn-ghost" onClick={() => setActiveId(null)} title="New chat"><MessageSquarePlus size={13} /></button></div>

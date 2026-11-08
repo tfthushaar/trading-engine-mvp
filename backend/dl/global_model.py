@@ -38,20 +38,24 @@ def load() -> dict:
     arrays = np.load(WEIGHTS_DIR / manifest["weights_file"])
     members = []
     for m in manifest["members"]:
-        net, _ = build_model(m["arch"], manifest["window"], len(manifest["features"]), m["params"], seed=0)
-        params = net.parameters()
-        if len(params) != m["n_tensors"]:
-            raise GlobalModelUnavailable(f"weight layout mismatch for {m['id']}")
-        for i, p in enumerate(params):
-            arr = arrays[f"{m['id']}/{i}"]
-            if arr.shape != p.value.shape:
-                raise GlobalModelUnavailable(f"shape mismatch in {m['id']} tensor {i}: {arr.shape} vs {p.value.shape}")
-            p.value[...] = arr
-        # Dropout layers need their own generators for MC sampling
-        for layer in nn.iter_layers(net):
-            if isinstance(layer, nn.Dropout):
-                layer.rng = np.random.default_rng(1234)
-        members.append({"id": m["id"], "arch": m["arch"], "name": m["name"], "net": net})
+        nets = []  # one network per training seed; a member's probability is their average
+        for seed in m.get("seeds") or [None]:
+            prefix = m["id"] if seed is None else f"{m['id']}/s{seed}"
+            net, _ = build_model(m["arch"], manifest["window"], len(manifest["features"]), m["params"], seed=0)
+            params = net.parameters()
+            if len(params) != m["n_tensors"]:
+                raise GlobalModelUnavailable(f"weight layout mismatch for {prefix}")
+            for i, p in enumerate(params):
+                arr = arrays[f"{prefix}/{i}"]
+                if arr.shape != p.value.shape:
+                    raise GlobalModelUnavailable(f"shape mismatch in {prefix} tensor {i}: {arr.shape} vs {p.value.shape}")
+                p.value[...] = arr
+            # Dropout layers need their own generators for MC sampling
+            for layer in nn.iter_layers(net):
+                if isinstance(layer, nn.Dropout):
+                    layer.rng = np.random.default_rng(1234 + (seed or 0))
+            nets.append(net)
+        members.append({"id": m["id"], "arch": m["arch"], "name": m["name"], "nets": nets})
     return {
         "manifest": manifest,
         "members": members,
@@ -94,9 +98,10 @@ def _score_windows(windows: np.ndarray, mc_samples: int = 0) -> dict:
     probs, mc = [], []
     with _lock:  # layers cache activations, so forward passes are serialised per process
         for m in g["members"]:
-            probs.append(nn.sigmoid(predict(m["net"], windows)))
+            probs.append(np.mean([nn.sigmoid(predict(net, windows)) for net in m["nets"]], axis=0))
             if mc_samples:
-                mc.append(np.stack([nn.sigmoid(predict(m["net"], windows, training=True)) for _ in range(mc_samples)]))
+                per_net = max(1, mc_samples // len(m["nets"]))  # keep total passes per member constant
+                mc.append(np.stack([nn.sigmoid(predict(net, windows, training=True)) for net in m["nets"] for _ in range(per_net)]))
     probs = np.stack(probs)  # (M, N)
     out = {"members": probs, "ensemble": probs.mean(axis=0)}
     if mc_samples:
@@ -119,11 +124,11 @@ def _attribution(window: np.ndarray) -> list[dict]:
     total = np.zeros(len(feats))
     with _lock:
         for m in g["members"]:
-            net = m["net"]
-            net.forward(window, training=False)
-            dx = net.backward(np.ones((len(window), 1)))
-            net.zero_grad()
-            total += (dx * window).sum(axis=1).mean(axis=0)
+            for net in m["nets"]:
+                net.forward(window, training=False)
+                dx = net.backward(np.ones((len(window), 1)))
+                net.zero_grad()
+                total += (dx * window).sum(axis=1).mean(axis=0) / len(m["nets"])
     total /= len(g["members"])
     scale = np.abs(total).sum() or 1.0
     rows = [{"feature": f, "label": FEATURES.get(f, f), "contribution": round(float(v), 5), "share": round(float(abs(v) / scale), 4)} for f, v in zip(feats, total)]
@@ -151,7 +156,7 @@ def scan(symbols: list[str] | None = None, mc_samples: int = 8) -> dict:
     g = load()
     man = g["manifest"]
     W = man["window"]
-    syms = [md.normalize_symbol(s) for s in (symbols or list(UNIVERSE))]
+    syms = md.valid_symbols(symbols or list(UNIVERSE))
     frames = _frames(syms)
     if not frames:
         raise md.MarketDataError("no market data available for the requested symbols")

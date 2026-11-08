@@ -12,9 +12,10 @@ export class ApiError extends Error {
 
 function llmHeaders(): Record<string, string> {
   const s = getStored<LLMSettings>(KEYS.llm, DEFAULT_LLM);
-  if (s.mode !== "own" || !s.key) return {};
+  // Header values must be printable ASCII, or fetch throws and every request on the site fails
+  if (s.mode !== "own" || !/^[\x21-\x7e]+$/.test(s.key)) return {};
   const h: Record<string, string> = { "X-LLM-Provider": s.provider, "X-LLM-Key": s.key };
-  if (s.model) h["X-LLM-Model"] = s.model;
+  if (/^[\x21-\x7e]+$/.test(s.model)) h["X-LLM-Model"] = s.model;
   return h;
 }
 
@@ -35,54 +36,59 @@ export async function api<T = any>(path: string, init?: { method?: string; body?
   return data as T;
 }
 
-/* ---- Cached GET hook: dedupes concurrent requests, keeps data while revalidating ---------- */
+/* ---- Cached GET hook: one request per key, shared by every component that reads it ------- */
 type Entry = { data?: any; error?: ApiError; at: number; promise?: Promise<any> };
 const cache = new Map<string, Entry>();
+const subscribers = new Map<string, Set<() => void>>();
+const MAX_ENTRIES = 200;
+
+function notify(path: string) {
+  subscribers.get(path)?.forEach((fn) => fn());
+}
+
+function request(path: string, staleMs: number, force = false) {
+  const e = cache.get(path);
+  if (e?.promise) return; // never run two requests for one key: the older could overwrite the newer
+  if (!force && e?.data !== undefined && Date.now() - e.at < staleMs) return;
+  const promise = api(path)
+    .then((data) => cache.set(path, { data, at: Date.now() }))
+    .catch((error: ApiError) => cache.set(path, { data: cache.get(path)?.data, error, at: Date.now() }))
+    .finally(() => notify(path));
+  cache.set(path, { ...(e ?? { at: 0 }), promise });
+  if (cache.size > MAX_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest && oldest !== path && !subscribers.get(oldest)?.size) cache.delete(oldest);
+  }
+  notify(path);
+}
 
 export function useApi<T = any>(path: string | null, opts?: { refreshMs?: number; staleMs?: number }) {
   const staleMs = opts?.staleMs ?? 30_000;
-  const [, force] = useState(0);
-  const mounted = useRef(true);
-  const entry = path ? cache.get(path) : undefined;
-
-  const load = useCallback(
-    async (p: string, forceReload = false) => {
-      const e = cache.get(p);
-      if (!forceReload && e?.promise) return e.promise;
-      if (!forceReload && e?.data !== undefined && Date.now() - e.at < staleMs) return e.data;
-      const promise = api<T>(p)
-        .then((data) => {
-          cache.set(p, { data, at: Date.now() });
-          return data;
-        })
-        .catch((error: ApiError) => {
-          cache.set(p, { data: cache.get(p)?.data, error, at: Date.now() });
-        })
-        .finally(() => mounted.current && force((x) => x + 1));
-      cache.set(p, { ...(e ?? { at: 0 }), promise });
-      force((x) => x + 1);
-      return promise;
-    },
-    [staleMs],
-  );
+  const refreshMs = opts?.refreshMs;
+  const [, rerender] = useState(0);
 
   useEffect(() => {
-    mounted.current = true;
-    if (path) load(path);
-    if (!path || !opts?.refreshMs) return () => void (mounted.current = false);
-    const id = setInterval(() => load(path, true), opts.refreshMs);
+    if (!path) return;
+    const update = () => rerender((x) => x + 1);
+    if (!subscribers.has(path)) subscribers.set(path, new Set());
+    subscribers.get(path)!.add(update);
+    request(path, staleMs);
+    const id = refreshMs ? setInterval(() => document.visibilityState === "visible" && request(path, staleMs, true), refreshMs) : undefined;
     return () => {
-      mounted.current = false;
-      clearInterval(id);
+      subscribers.get(path)?.delete(update);
+      if (id) clearInterval(id);
     };
-  }, [path, load, opts?.refreshMs]);
+  }, [path, staleMs, refreshMs]);
 
+  const entry = path ? cache.get(path) : undefined;
   return {
     data: entry?.data as T | undefined,
     error: entry?.error,
-    loading: !!entry?.promise && entry?.data === undefined,
+    loading: !!path && entry?.data === undefined && !entry?.error,
     refreshing: !!entry?.promise,
-    reload: () => path && load(path, true),
+    reload: () => {
+      if (path) request(path, staleMs, true);
+    },
   };
 }
 

@@ -37,6 +37,12 @@ UNIVERSE: dict[str, tuple[str, str]] = {
 }
 MARKET_SYMBOLS = ["SPY", "^VIX"]
 GLOBAL_FEATURES = DEFAULT_FEATURES + ["mkt_ret_5", "vix"]
+EXTENDED_FEATURES = GLOBAL_FEATURES + ["ret_60", "high_252_gap", "sma200_gap", "vol_ratio", "rel_ret_5", "rel_ret_20", "mkt_ret_20", "vix_chg_5"]
+# Extra liquid large caps used only as additional training data (signals still display UNIVERSE)
+TRAIN_UNIVERSE = (
+    "CSCO IBM QCOM TXN MU AMAT LRCX ADI HON UPS RTX LMT DE MMM UNP FDX SBUX NKE LOW TGT TJX BKNG PEP PM MO CL MDLZ MRK ABT TMO DHR "
+    "AMGN GILD BMY CVS C WFC MS AXP BLK SCHW USB COP SLB EOG NEE DUK SO T VZ CMCSA LIN"
+).split()
 
 
 def standardize(values: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:

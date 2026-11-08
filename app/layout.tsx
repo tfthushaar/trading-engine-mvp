@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TopBar />
         <main className="mx-auto max-w-[1920px] px-3 pb-10 pt-3 sm:px-4">{children}</main>
         <footer className="mx-auto max-w-[1920px] border-t border-line px-4 py-3 text-[11px] text-fg-3">
-          Trading Engine. Forecasts come from neural networks trained on historical prices and are for research and education, not financial advice. Market data from Yahoo Finance may be delayed. Charts by TradingView Lightweight Charts.
+          Trading Engine. Forecasts come from neural networks trained on historical prices and are for research and education, not financial advice. Market data from Yahoo Finance may be delayed. Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline">TradingView</a> Lightweight Charts.
         </footer>
       </body>
     </html>

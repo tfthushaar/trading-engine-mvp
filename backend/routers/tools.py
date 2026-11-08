@@ -5,6 +5,7 @@ heatmap and the strategy arena across a watchlist. All stateless: the browser se
 from __future__ import annotations
 
 import json
+import time
 
 import numpy as np
 from fastapi import APIRouter, Query
@@ -15,7 +16,7 @@ from backend import journal, portfolio
 from backend.ai import llm
 from backend.ai.insights import GROUNDING
 from backend.dl.panel import UNIVERSE
-from backend.http import limit, ok
+from backend.http import limit, ok, ok_ai
 from backend.market import data as md
 from backend.market import overview, scanner
 from backend.strategies import engine, evaluator, rules
@@ -37,6 +38,10 @@ NARRATION_SCHEMA = {
 }
 
 
+# Alerts keep the same id for a symbol, type and day, so each one is narrated once however often clients poll
+_narrations: dict[str, tuple[float, str]] = {}
+
+
 @router.get("/alerts")
 async def alerts(symbols: str = Query(...), narrate: bool = Query(True), options: bool = Query(True)):
     syms = [s for s in symbols.split(",") if s.strip()][:30]
@@ -45,16 +50,28 @@ async def alerts(symbols: str = Query(...), narrate: bool = Query(True), options
         a["narration"] = a["detail"]
     res["source"] = "data"
     if narrate and res["alerts"]:
+        now = time.time()
         top = res["alerts"][:8]
-        listing = "\n".join(f'{a["id"]}: {a["title"]}. {a["detail"]}' for a in top)
-        out, source = await llm.complete_or(None, f"Write one plain sentence per alert explaining what it means for someone watching the stock (no advice, no emojis).\n\n{listing}",
-                                            system=GROUNDING, effort="low", max_tokens=900, schema=NARRATION_SCHEMA)
-        if out:
-            by_id = {i["id"]: i["narration"] for i in out.get("items", []) if isinstance(i, dict)}
-            for a in top:
-                a["narration"] = by_id.get(a["id"], a["narration"])
-        res.update(_src(source))
-    return ok(res, cache_s=60)
+        for a in top:
+            known = _narrations.get(a["id"])
+            if known and known[0] > now:
+                a["narration"] = known[1]
+                res["source"] = "ai"
+        todo = [a for a in top if not (_narrations.get(a["id"]) and _narrations[a["id"]][0] > now)]
+        if todo:
+            listing = "\n".join(f'{a["id"]}: {a["title"]}. {a["detail"]}' for a in todo)
+            out, source = await llm.complete_or(None, f"Write one plain sentence per alert explaining what it means for someone watching the stock (no advice, no emojis).\n\n{listing}",
+                                                system=GROUNDING, effort="low", max_tokens=900, schema=NARRATION_SCHEMA)
+            if out:
+                if len(_narrations) > 2000:
+                    _narrations.clear()
+                by_id = {i["id"]: i["narration"] for i in out.get("items", []) if isinstance(i, dict) and i.get("narration")}
+                for a in todo:
+                    if a["id"] in by_id:
+                        a["narration"] = by_id[a["id"]]
+                        _narrations[a["id"]] = (now + 86400, by_id[a["id"]])
+            res.update(_src(source))
+    return ok_ai(res, 60)
 
 
 @router.get("/signals/technical/scan")
@@ -178,7 +195,9 @@ class CompetitionRequest(BaseModel):
 
 
 def _competition(req: CompetitionRequest) -> dict:
-    syms = [md.normalize_symbol(s) for s in req.symbols][:20]
+    syms = md.valid_symbols(req.symbols)[:20]
+    if not syms:
+        raise ValueError("enter at least one valid symbol")
     data = md.histories(syms, period=req.period, interval=req.interval)
     ppy = engine.periods_per_year(req.interval)
     cost = min(max(req.cost_bps, 0), 50) + min(max(req.slippage_bps, 0), 50)

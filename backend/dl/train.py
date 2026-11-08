@@ -33,11 +33,11 @@ class TrainConfig:
         self.weight_decay = float(min(max(self.weight_decay, 0.0), 0.1))
         self.patience = int(min(max(self.patience, 2), 100))
         self.clip_norm = float(min(max(self.clip_norm, 0.0), 100.0))
-        self.time_budget_s = float(min(max(self.time_budget_s, 2.0), 50.0))
+        self.time_budget_s = float(min(max(self.time_budget_s, 2.0), 40.0))
         return self
 
 
-def predict(model: nn.Layer, X: np.ndarray, training: bool = False, batch: int = 1024) -> np.ndarray:
+def predict(model: nn.Layer, X: np.ndarray, training: bool = False, batch: int = 128) -> np.ndarray:
     """Raw outputs (logits or scaled returns), shape (N,)."""
     if len(X) == 0:
         return np.zeros(0)
@@ -93,6 +93,8 @@ def train(model: nn.Layer, ds: Dataset, cfg: TrainConfig) -> dict:
             tot += loss * len(b)
             cnt += len(b)
             hits += _metric(ds.task, out.reshape(-1), ytr[b]) * len(b)  # running metric (train mode)
+            if time.perf_counter() - t0 > cfg.time_budget_s:  # large models can spend many seconds in one epoch
+                break
 
         out_va = predict(model, Xva)
         val_loss = loss_fn(out_va.reshape(-1, 1), y_col(yva))[0]

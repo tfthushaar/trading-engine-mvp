@@ -62,6 +62,11 @@ def ok(data: Any, cache_s: int = 0, status_code: int = 200) -> SafeJSONResponse:
     return SafeJSONResponse(data, status_code=status_code, headers=headers)
 
 
+def ok_ai(data: dict, cache_s: int) -> SafeJSONResponse:
+    """Share AI output through the CDN only when it really is AI output produced with the site's own key."""
+    return ok(data, cache_s=cache_s if data.get("source") == "ai" and not llm.visitor_llm.get() else 0)
+
+
 def client_ip_from(scope: Scope) -> str:
     headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
     for h in ("x-real-ip", "x-forwarded-for", "cf-connecting-ip"):

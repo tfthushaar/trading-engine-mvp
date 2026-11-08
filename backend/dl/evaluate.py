@@ -115,10 +115,10 @@ def permutation_importance(model: nn.Layer, X: np.ndarray, y: np.ndarray, task: 
     return scores
 
 
-def attention_maps(model: nn.Layer, X: np.ndarray, max_samples: int = 128) -> list[list[list[float]]]:
-    """Average attention matrix (T x T) for each attention layer, averaged over samples and heads."""
+def attention_maps(model: nn.Layer, X: np.ndarray, max_samples: int = 64, max_steps: int = 40) -> list[list[list[float]]]:
+    """Average attention (T x T) per layer over samples and heads, limited to the most recent `max_steps` bars."""
     layers = [layer for layer in nn.iter_layers(model) if isinstance(layer, nn.MultiHeadSelfAttention)]
     if not layers:
         return []
     model.forward(X[-max_samples:], training=False)
-    return [np.round(layer.last_attention.mean(axis=(0, 1)), 5).tolist() for layer in layers]
+    return [np.round(layer.last_attention.mean(axis=(0, 1))[-max_steps:, -max_steps:], 5).tolist() for layer in layers]

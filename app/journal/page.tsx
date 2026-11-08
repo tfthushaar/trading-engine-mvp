@@ -56,7 +56,7 @@ function LogForm({ onSave }: { onSave: (e: Entry) => void }) {
   return (
     <form className="grid grid-cols-2 gap-2" onSubmit={(e) => (e.preventDefault(), submit())}>
       <Field label="Symbol"><input className="input font-semibold" value={f.symbol} onChange={(e) => setF({ ...f, symbol: e.target.value.toUpperCase() })} /></Field>
-      <Field label="Direction"><Seg value={f.direction} onChange={(v) => setF({ ...f, direction: v })} options={[{ value: "long", label: "Long" }, { value: "short", label: "Short" }]} /></Field>
+      <Field label="Direction" group><Seg value={f.direction} onChange={(v) => setF({ ...f, direction: v })} options={[{ value: "long", label: "Long" }, { value: "short", label: "Short" }]} /></Field>
       <Field label="Entry"><input className="input num" inputMode="decimal" value={f.entry_price} onChange={(e) => setF({ ...f, entry_price: e.target.value })} /></Field>
       <Field label="Size"><input className="input num" inputMode="decimal" value={f.size} onChange={(e) => setF({ ...f, size: e.target.value })} /></Field>
       <Field label="Stop"><input className="input num" inputMode="decimal" value={f.stop_loss} onChange={(e) => setF({ ...f, stop_loss: e.target.value })} /></Field>
@@ -88,19 +88,24 @@ export default function JournalPage() {
     }, 400);
     return () => clearTimeout(id);
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const closeTrade = async (e: Entry) => {
+  const review = async (entry: Entry) => {
+    setReviewing(entry.id);
+    try {
+      const r = await api("/api/journal/review", { body: { entry } });
+      setEntries((prev) => prev.map((x) => (x.id === entry.id ? { ...x, review: r.review } : x)));
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setReviewing(null);
+    }
+  };
+  const closeTrade = (e: Entry) => {
     if (!Number(exitPx)) return;
     const updated: Entry = { ...e, exit_price: +exitPx, exit_date: nowLocal(), emotion_exit: exitEmotion };
     setEntries(entries.map((x) => (x.id === e.id ? updated : x)));
     setClosing(null);
     setExitPx("");
-    setReviewing(e.id);
-    try {
-      const r = await api("/api/journal/review", { body: { entry: updated } });
-      setEntries((prev) => prev.map((x) => (x.id === e.id ? { ...x, review: r.review } : x)));
-    } finally {
-      setReviewing(null);
-    }
+    review(updated);
   };
   const sorted = [...entries].sort((a, b) => b.entry_date.localeCompare(a.entry_date));
   return (
@@ -112,7 +117,7 @@ export default function JournalPage() {
       />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[340px_1fr]">
         <div className="space-y-3">
-          <Card title="Log a trade"><LogForm onSave={(e) => setEntries([e, ...entries])} /></Card>
+          <Card title="Log a trade"><LogForm onSave={(e) => { setEntries([e, ...entries]); if (e.exit_price != null) review(e); }} /></Card>
           {report?.score != null && (
             <Card title="Discipline" right={report.coaching && <SourceTag source={report.coaching.source} note={report.coaching.note} />}>
               <div className="flex items-center gap-3">
@@ -176,7 +181,7 @@ export default function JournalPage() {
                           <td><SymbolLink symbol={e.symbol} /></td>
                           <td className="capitalize">{e.direction}</td>
                           <td className="r num">{num(e.entry_price)}</td>
-                          <td className="r num faint">{num(e.stop_loss)} / {num(e.target)}</td>
+                          <td className="r num faint">{num(e.stop_loss || null)} / {num(e.target || null)}</td>
                           <td className="r num">
                             {e.exit_price != null ? num(e.exit_price) : closing === e.id ? (
                               <span className="inline-flex gap-1"><input autoFocus className="input num h-6 w-20" value={exitPx} onChange={(x) => setExitPx(x.target.value)} placeholder="Exit" /><select className="select h-6 w-auto" value={exitEmotion} onChange={(x) => setExitEmotion(x.target.value)}>{EMOTIONS.map((m) => <option key={m}>{m}</option>)}</select><button className="btn btn-sm btn-primary" onClick={() => closeTrade(e)}>Close</button></span>

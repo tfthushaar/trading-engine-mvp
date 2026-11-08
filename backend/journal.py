@@ -44,7 +44,7 @@ def analyze(entries: list[dict]) -> dict:
     # Revenge trading: two or more new entries within 24h after a loss worse than -1.5%
     revenge = 0
     for _, row in closed[closed["pnl_pct"] < -1.5].iterrows():
-        t0 = row["exit_date"] or row["entry_date"]
+        t0 = row["exit_date"] if pd.notna(row["exit_date"]) else row["entry_date"]
         later = df[(df["entry_date"] > t0) & (df["entry_date"] <= t0 + timedelta(hours=24))]
         if len(later) >= 2:
             revenge += 1
@@ -61,6 +61,8 @@ def analyze(entries: list[dict]) -> dict:
     cut = 0
     for _, row in wins.iterrows():
         try:
+            if not float(row["target"]):  # no target was planned
+                continue
             planned = abs(float(row["target"]) - float(row["entry_price"]))
             got = abs(float(row["exit_price"]) - float(row["entry_price"]))
             if planned > 0 and got < 0.5 * planned:
@@ -74,6 +76,8 @@ def analyze(entries: list[dict]) -> dict:
     for _, row in losses.iterrows():
         try:
             sp, xp = float(row["stop_loss"]), float(row["exit_price"])
+            if not sp:  # no stop was planned
+                continue
             if (row.get("direction") != "short" and xp < sp * 0.995) or (row.get("direction") == "short" and xp > sp * 1.005):
                 beyond += 1
         except (TypeError, ValueError, KeyError):

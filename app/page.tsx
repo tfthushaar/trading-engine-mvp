@@ -158,13 +158,17 @@ function WatchlistPanel() {
     <Card
       className="lg:col-span-4"
       title={
-        <select className="select h-6 w-auto border-0 bg-transparent px-0 font-semibold" value={wl.active} onChange={(e) => (e.target.value === "__new" ? wl.create(prompt("New watchlist name") || "New list") : wl.setActive(e.target.value))}>
+        <select className="select h-6 w-auto border-0 bg-transparent px-0 font-semibold" value={wl.active} onChange={(e) => {
+          if (e.target.value !== "__new") return wl.setActive(e.target.value);
+          const name = prompt("New watchlist name");
+          if (name?.trim()) wl.create(name);
+        }}>
           {wl.names.map((n) => <option key={n} value={n}>{n}</option>)}
           <option value="__new">New watchlist...</option>
         </select>
       }
       right={
-        <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) wl.toggle(adding.trim()); setAdding(""); }}>
+        <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); wl.add(adding); setAdding(""); }}>
           <input className="input h-6 w-24 text-[12px]" placeholder="Add symbol" value={adding} onChange={(e) => setAdding(e.target.value.toUpperCase())} />
           <button className="btn btn-sm" title="Add"><Plus size={12} /></button>
           {wl.names.length > 1 && <button type="button" className="btn btn-sm btn-ghost" title="Delete this watchlist" onClick={() => confirm(`Delete ${wl.active}?`) && wl.remove(wl.active)}><Trash2 size={12} /></button>}

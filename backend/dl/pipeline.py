@@ -10,10 +10,12 @@ import numpy as np
 from backend.dl import evaluate as ev
 from backend.dl.architectures import ARCHITECTURES, build_model, receptive_field, summarize
 from backend.dl.data import MARKET_FEATURES, Dataset, build_dataset, split_summary
-from backend.dl.nn import sigmoid
+from backend.dl.nn import LOSSES, sigmoid
 from backend.dl.train import TrainConfig, predict, train
 from backend.market import data as md
 from backend.strategies import engine
+
+EVAL_DEADLINE_S = 70.0  # the serverless function is killed at 90 s
 
 DISCLAIMER = (
     "Research output from statistical models trained on historical prices. Not financial advice. "
@@ -21,8 +23,25 @@ DISCLAIMER = (
 )
 
 
-def signal_from_prob(p: float) -> str:
-    return "bullish" if p >= 0.55 else "bearish" if p <= 0.45 else "neutral"
+def signal_from_prob(p: float, base_rate: float = 0.5) -> str:
+    """Label relative to how often this symbol rose in training, not relative to a coin flip."""
+    return "bullish" if p >= base_rate + 0.03 else "bearish" if p <= base_rate - 0.03 else "neutral"
+
+
+def train_config(raw: dict | None) -> TrainConfig:
+    """Build a TrainConfig from untrusted input, naming the field that has the wrong type."""
+    cfg = TrainConfig()
+    for key, value in (raw or {}).items():
+        if key not in TrainConfig.__dataclass_fields__ or value is None:
+            continue
+        kind = type(getattr(cfg, key))
+        try:
+            setattr(cfg, key, kind(float(value)) if kind in (int, float) else kind(value))
+        except (TypeError, ValueError):
+            raise ValueError(f"training option '{key}' must be a {'number' if kind in (int, float) else 'string'}") from None
+    if cfg.loss != "auto" and cfg.loss not in LOSSES:
+        raise ValueError(f"loss must be one of auto, {', '.join(LOSSES)}")
+    return cfg.clamp()
 
 
 # Bar sizes the Lab supports and the longest history Yahoo serves for each
@@ -78,7 +97,9 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
     threshold = float(min(max(cfg.get("threshold", 0.5), 0.5), 0.7))
     cost_bps = float(min(max(cfg.get("cost_bps", 5.0), 0.0), 50.0))
     long_short = bool(cfg.get("long_short", False))
-    tcfg = TrainConfig(**{k: v for k, v in (cfg.get("train") or {}).items() if k in TrainConfig.__dataclass_fields__}).clamp()
+    tcfg = train_config(cfg.get("train"))
+    if arch == "transformer":  # attention stores B x heads x T x T per layer, so large batches can exhaust memory
+        tcfg.batch_size = min(tcfg.batch_size, 128)
 
     interval = cfg.get("interval", "1d")
     ds = load_dataset(symbol, cfg.get("period", "10y"), window, horizon, task, cfg.get("features"), interval)
@@ -97,8 +118,7 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
     baselines: dict[str, dict] = {}
     y_te = ds.y[ds.test]
     if task == "classification":
-        majority = float(ds.y[ds.train].mean() >= 0.5)
-        baselines["majority_class"] = ev.classification_metrics(np.full(len(y_te), 0.75 if majority else 0.25), y_te)
+        # Predicting the training base rate is also the majority-class rule: same accuracy, and a meaningful log loss
         baselines["train_base_rate"] = ev.classification_metrics(np.full(len(y_te), float(ds.y[ds.train].mean())), y_te)
     else:
         baselines["zero_return"] = ev.regression_metrics(np.zeros(len(y_te)) + 1e-12, ds.fwd_ret[ds.test])
@@ -133,8 +153,14 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
         backtest["metrics"]["linear"] = {**bt_lin["metrics"], "trades": bt_lin["n_trades"]}
 
     # ---- Interpretability ---------------------------------------------------------------------
-    sal = ev.saliency(model, Xte)
-    perm = ev.permutation_importance(model, Xte, ds.y[ds.test], task, seed=tcfg.seed)
+    sample = 64 if arch == "transformer" else 256
+    t_probe = time.perf_counter()
+    sal = ev.saliency(model, Xte, max_samples=sample)
+    probe = time.perf_counter() - t_probe
+    # Permutation importance costs (features x repeats) forward passes, so size it to the time actually left
+    left = EVAL_DEADLINE_S - (time.perf_counter() - t_start)
+    repeats = 3 if probe * F * 3 < left else 1
+    perm = ev.permutation_importance(model, Xte[-sample:], ds.y[ds.test][-sample:], task, seed=tcfg.seed, repeats=repeats) if probe * F < left else [0.0] * F
     sal_feat = sal.sum(axis=0)
     sal_feat = sal_feat / (sal_feat.sum() or 1.0)
     importance = sorted(
@@ -166,7 +192,7 @@ def run_experiment(cfg: dict[str, Any]) -> dict:
     }
     if task == "classification":
         forecast["prob_up"] = round(point, 5)
-        forecast["signal"] = signal_from_prob(point)
+        forecast["signal"] = signal_from_prob(point, float(ds.y[ds.train].mean()))
     else:
         forecast["expected_log_return"] = round(point, 6)
         forecast["signal"] = "bullish" if point > 0.25 * ds.y_scale else "bearish" if point < -0.25 * ds.y_scale else "neutral"

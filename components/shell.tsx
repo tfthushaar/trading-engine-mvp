@@ -242,9 +242,8 @@ export function TopBar() {
     <>
       <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-xl">
         <div className="mx-auto flex h-11 max-w-[1920px] items-center gap-3 px-3 sm:px-4">
-          <Link href="/" className="flex shrink-0 items-center gap-2" title="Trading Engine">
-            <span className="grid h-6 w-6 place-items-center rounded-md bg-inv text-[10px] font-bold tracking-tight text-inv-fg">TE</span>
-            <span className="hidden text-[13px] font-semibold tracking-tight md:inline">Trading Engine</span>
+          <Link href="/" className="shrink-0 text-[13px] font-semibold tracking-tight" title="Trading Engine">
+            Trading Engine
           </Link>
           <nav className="-mx-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
             {NAV.map((n) => (
