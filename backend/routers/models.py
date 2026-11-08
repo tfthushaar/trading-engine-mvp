@@ -24,7 +24,10 @@ async def scan(symbols: str | None = Query(None, description="Comma-separated; d
 
 @router.get("/signals/{symbol}")
 async def signal(symbol: str, lookback: int = Query(120, ge=20, le=250)):
-    return ok(await run_in_threadpool(global_model.symbol_detail, symbol, lookback), cache_s=120)
+    try:
+        return ok(await run_in_threadpool(global_model.symbol_detail, symbol, lookback), cache_s=120)
+    except global_model.NotScorable as exc:
+        return ok({"symbol": symbol.upper(), "supported": False, "reason": str(exc)}, cache_s=300)
 
 
 @router.get("/models/card")

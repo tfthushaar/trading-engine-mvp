@@ -4,11 +4,14 @@ import { useState } from "react";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { DivergingBars, Sparkline } from "@/components/charts";
 import { Card, Change, Disclaimer, Empty, ErrorBox, Meter, SignalPill, Skeleton, SourceTag, StarButton, SymbolLink } from "@/components/ui";
-import { useApi } from "@/lib/api";
+import { api, useApi } from "@/lib/api";
 import { ago, pct, price, rate } from "@/lib/format";
 import { KEYS, useStored, useWatchlist, type Notification } from "@/lib/store";
 
-function MacroStrip({ data }: { data?: any }) {
+const Unavailable = () => <p className="muted text-[12px]">Market data is unavailable right now.</p>;
+
+function MacroStrip({ data, failed }: { data?: any; failed?: boolean }) {
+  if (!data && failed) return null;
   if (!data) return <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} h={52} />)}</div>;
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-10">
@@ -105,10 +108,10 @@ function NeuralBreadth() {
   );
 }
 
-function Sectors({ data }: { data?: any }) {
+function Sectors({ data, failed }: { data?: any; failed?: boolean }) {
   return (
     <Card className="lg:col-span-4" title="Sectors" right={<Link href="/markets" className="btn btn-sm btn-ghost">Heatmap</Link>}>
-      {!data ? <Skeleton h={220} /> : (
+      {!data ? (failed ? <Unavailable /> : <Skeleton h={220} />) : (
         <DivergingBars labelWidth={120} format={(v) => pct(v)} rows={data.sectors.map((s: any) => ({ key: s.symbol, label: <Link href={`/symbol/${s.symbol}`} className="hover:underline">{s.label} <span className="faint">{s.symbol}</span></Link>, value: s.change_pct }))} />
       )}
       {data?.regime && (
@@ -122,7 +125,7 @@ function Sectors({ data }: { data?: any }) {
   );
 }
 
-function Movers({ data }: { data?: any }) {
+function Movers({ data, failed }: { data?: any; failed?: boolean }) {
   const Table = ({ rows, title }: { rows: any[]; title: string }) => (
     <div className="min-w-0">
       <div className="eyebrow px-2.5 pb-1">{title}</div>
@@ -142,7 +145,7 @@ function Movers({ data }: { data?: any }) {
   );
   return (
     <Card className="lg:col-span-5" title="Movers" bodyClass="py-2 grid grid-cols-1 gap-2 sm:grid-cols-2" right={data && <span className="faint text-[11px]">{data.breadth.advancing} up / {data.breadth.declining} down</span>}>
-      {!data ? <Skeleton h={180} /> : <><Table rows={data.gainers} title="Gainers" /><Table rows={data.losers} title="Decliners" /></>}
+      {!data ? (failed ? <Unavailable /> : <Skeleton h={180} />) : <><Table rows={data.gainers} title="Gainers" /><Table rows={data.losers} title="Decliners" /></>}
     </Card>
   );
 }
@@ -151,8 +154,22 @@ function WatchlistPanel() {
   const wl = useWatchlist();
   const [adding, setAdding] = useState("");
   const syms = wl.list.join(",");
-  const { data: quotes } = useApi<any>(syms ? `/api/market/quotes?symbols=${encodeURIComponent(syms)}` : null, { refreshMs: 60_000 });
-  const { data: sig } = useApi<any>(syms ? `/api/signals/scan?symbols=${encodeURIComponent(syms)}` : null, { staleMs: 120_000 });
+  const [addError, setAddError] = useState("");
+  const addSymbol = async () => {
+    const s = adding.trim().toUpperCase();
+    if (!s) return;
+    setAddError("");
+    try {
+      const found = await api(`/api/market/quotes?symbols=${encodeURIComponent(s)}`);
+      if (!found[s]) return setAddError(`No market data for ${s}. Check the symbol.`);
+      wl.add(s);
+      setAdding("");
+    } catch (e: any) {
+      setAddError(e.message);
+    }
+  };
+  const { data: quotes, error: quotesError } = useApi<any>(syms ? `/api/market/quotes?symbols=${encodeURIComponent(syms)}` : null, { refreshMs: 60_000 });
+  const { data: sig, error: sigError } = useApi<any>(syms ? `/api/signals/scan?symbols=${encodeURIComponent(syms)}` : null, { staleMs: 120_000 });
   const bySym: Record<string, any> = Object.fromEntries((sig?.rows ?? []).map((r: any) => [r.symbol, r]));
   return (
     <Card
@@ -168,7 +185,7 @@ function WatchlistPanel() {
         </select>
       }
       right={
-        <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); wl.add(adding); setAdding(""); }}>
+        <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); addSymbol(); }}>
           <input className="input h-6 w-24 text-[12px]" placeholder="Add symbol" value={adding} onChange={(e) => setAdding(e.target.value.toUpperCase())} />
           <button className="btn btn-sm" title="Add"><Plus size={12} /></button>
           {wl.names.length > 1 && <button type="button" className="btn btn-sm btn-ghost" title="Delete this watchlist" onClick={() => confirm(`Delete ${wl.active}?`) && wl.remove(wl.active)}><Trash2 size={12} /></button>}
@@ -176,6 +193,7 @@ function WatchlistPanel() {
       }
       bodyClass="p-0"
     >
+      {(addError || quotesError || sigError) && <div className="p-2"><ErrorBox error={addError || quotesError || sigError} /></div>}
       {wl.list.length === 0 ? <Empty title="Empty watchlist">Add symbols here or with the star on any symbol page.</Empty> : (
         <table className="tbl">
           <thead><tr><th>Symbol</th><th className="r">Price</th><th className="r">Day</th><th className="r">P(up 5d)</th><th>Signal</th><th /></tr></thead>
@@ -197,6 +215,7 @@ function WatchlistPanel() {
           </tbody>
         </table>
       )}
+      {sig?.skipped?.length > 0 && <p className="faint border-t border-line px-3 py-1.5 text-[11px]">Not scored: {sig.skipped.map((x: any) => `${x.symbol} (${x.reason})`).join(", ")}</p>}
     </Card>
   );
 }
@@ -229,12 +248,12 @@ export default function OverviewPage() {
   return (
     <div className="space-y-3">
       <ErrorBox error={error} onRetry={reload} />
-      <MacroStrip data={data} />
+      <MacroStrip data={data} failed={!!error} />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
         <Briefing />
         <NeuralBreadth />
-        <Sectors data={data} />
-        <Movers data={data} />
+        <Sectors data={data} failed={!!error} />
+        <Movers data={data} failed={!!error} />
         <WatchlistPanel />
         <AlertFeed />
       </div>

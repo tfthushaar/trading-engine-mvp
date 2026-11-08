@@ -117,8 +117,8 @@ def _ticker_ctx(sym: str) -> dict:
     try:
         d = global_model.symbol_detail(sym, lookback=20)
         out["neural_ensemble"] = {k: d[k] for k in ("horizon_days", "prob_up", "signal", "agreement", "uncertainty", "calibrated", "members")}
-    except Exception:
-        pass
+    except Exception as exc:
+        out["neural_ensemble_unavailable"] = str(exc)
     out["headlines"] = [n["title"] for n in md.news(sym, limit=5)]
     return out
 
@@ -177,8 +177,8 @@ def build_context(agent: str, syms: list[str], text: str, portfolio_positions: l
             ctx["neural_breadth"] = sc["breadth"]
             ctx["most_bullish"] = [f"{r['symbol']} {r['prob_up']:.2f}" for r in sc["rows"][:5]]
             ctx["most_bearish"] = [f"{r['symbol']} {r['prob_up']:.2f}" for r in sc["rows"][-5:]]
-        except Exception:
-            pass
+        except Exception as exc:
+            ctx["neural_ensemble_unavailable"] = str(exc)
     if agent in ("ticker", "model", "risk") and syms:
         ctx["symbols"] = [_ticker_ctx(s) for s in syms]
     if agent == "model":

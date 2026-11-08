@@ -19,7 +19,7 @@ function tileStyle(v: number | null | undefined, mode: "move" | "model", prob?: 
 export default function MarketsPage() {
   const [mode, setMode] = useState<"move" | "model">("move");
   const { data, error, reload } = useApi<any>("/api/market/heatmap", { refreshMs: 90_000 });
-  const { data: ov } = useApi<any>("/api/market/overview", { refreshMs: 60_000 });
+  const { data: ov, error: ovError } = useApi<any>("/api/market/overview", { refreshMs: 60_000 });
   return (
     <div>
       <PageHeader
@@ -56,7 +56,7 @@ export default function MarketsPage() {
         </div>
         <div className="space-y-3 xl:col-span-3">
           <Card title="Macro" bodyClass="p-0">
-            {!ov ? <Skeleton h={300} /> : (
+            {!ov ? (ovError ? <div className="p-2"><ErrorBox error={ovError} /></div> : <Skeleton h={300} />) : (
               <table className="tbl">
                 <tbody>
                   {ov.macro.map((m: any) => (

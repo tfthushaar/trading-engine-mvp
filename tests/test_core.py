@@ -199,3 +199,83 @@ def test_portfolio_rejects_short_positions():
 
     with pytest.raises(ValueError, match="positive"):
         portfolio.analyze([{"symbol": "AAPL", "quantity": -5, "avg_cost": 100}])
+
+
+def _market_with(symbol, frame):
+    return {symbol: frame, "SPY": synthetic_ohlcv(seed=1), "^VIX": synthetic_ohlcv(seed=2)}
+
+
+def test_zero_volume_instrument_is_reported_as_unsupported(monkeypatch):
+    from backend.dl import global_model
+
+    df = synthetic_ohlcv()
+    df["Volume"] = 0.0
+    monkeypatch.setattr(global_model.md, "histories", lambda *a, **k: _market_with("^TNX", df))
+    with pytest.raises(global_model.NotScorable, match="no trading volume"):
+        global_model.symbol_detail("^TNX")
+    scan = global_model.scan(["^TNX"], mc_samples=0)
+    assert scan["rows"] == [] and scan["skipped"] == [{"symbol": "^TNX", "reason": "no trading volume"}]
+
+
+def test_short_history_and_unknown_symbols_get_accurate_errors(monkeypatch):
+    from backend.dl import global_model
+    from backend.market.data import MarketDataError
+
+    monkeypatch.setattr(global_model.md, "histories", lambda *a, **k: _market_with("NEW", synthetic_ohlcv(40)))
+    with pytest.raises(global_model.NotScorable, match="six months"):
+        global_model.symbol_detail("NEW")
+    monkeypatch.setattr(global_model.md, "histories", lambda *a, **k: _market_with("OTHER", synthetic_ohlcv()))
+    with pytest.raises(MarketDataError, match="no price data"):
+        global_model.symbol_detail("ZZZZZZ")
+
+
+def test_lab_names_the_missing_volume_feature():
+    df = synthetic_ohlcv()
+    df["Volume"] = 0.0
+    with pytest.raises(ValueError, match="volume_z"):
+        build_dataset(df, window=20, horizon=5)
+    assert build_dataset(df, features=["ret_1", "ret_5"], window=20, horizon=5).X.shape[2] == 2
+
+
+def test_strategy_that_never_traded_cannot_outrank_one_that_lost():
+    from backend.routers import strategies as router
+
+    router_df = synthetic_ohlcv(seed=4)
+    router_df["Volume"] = 0.0
+    original = router._load
+    router._load = lambda *a, **k: router_df
+    try:
+        result = router._compare(router.CompareRequest(symbol="SPY", period="2y"))
+    finally:
+        router._load = original
+    assert result["note"] == rules.NO_VOLUME_NOTE
+    trades = [s["trades"] for s in result["strategies"]]
+    assert trades == sorted(trades, key=lambda t: t > 0, reverse=True)
+    assert result["strategies"][-1]["trades"] == 0
+
+
+def test_invalid_portfolio_symbol_stays_visible(monkeypatch):
+    from backend import portfolio
+
+    monkeypatch.setattr(portfolio.md, "histories", lambda *a, **k: {"AAPL": synthetic_ohlcv(), "SPY": synthetic_ohlcv(seed=1)})
+    res = portfolio.analyze([{"symbol": "AAPL", "quantity": 1, "avg_cost": 50}, {"symbol": "BAD!!", "quantity": 1, "avg_cost": 50}])
+    assert [p.get("error") for p in res["positions"] if p["symbol"] == "BAD!!"] == ["invalid symbol"]
+
+
+def test_profile_replaces_a_zero_52_week_low(monkeypatch):
+    import yfinance
+
+    from backend.market import data as md
+
+    class Ticker:
+        def __init__(self, symbol):
+            pass
+
+        def get_info(self):
+            return {"longName": "Yield index", "fiftyTwoWeekHigh": 5.4, "fiftyTwoWeekLow": 0.0}
+
+    frame = synthetic_ohlcv()
+    monkeypatch.setattr(yfinance, "Ticker", Ticker)
+    monkeypatch.setattr(md, "history", lambda *a, **k: frame)
+    profile = md.profile("ZEROLOW")
+    assert profile["low_52w"] == float(frame["Low"].min()) and profile["high_52w"] == float(frame["High"].max())

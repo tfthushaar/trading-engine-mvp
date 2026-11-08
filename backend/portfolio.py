@@ -21,11 +21,12 @@ def _sector(sym: str) -> str:
 
 
 def analyze(positions: list[dict]) -> dict:
-    pos = []
+    pos, invalid = [], []
     for p in positions[:40]:
         try:
             sym = md.normalize_symbol(str(p.get("symbol", "")))
         except md.MarketDataError:
+            invalid.append({"symbol": str(p.get("symbol", "")), "quantity": p.get("quantity"), "avg_cost": p.get("avg_cost"), "error": "invalid symbol"})
             continue
         qty = float(p.get("quantity") or 0)
         cost = float(p.get("avg_cost") or 0)
@@ -51,6 +52,7 @@ def analyze(positions: list[dict]) -> dict:
         rows.append({**p, "price": last, "value": value, "cost_basis": basis, "pnl": value - basis,
                      "pnl_pct": (value / basis - 1) * 100 if basis else None, "day_change_pct": (last / prev - 1) * 100, "day_pnl": (last - prev) * p["quantity"],
                      "sector": _sector(p["symbol"])})
+    rows.extend(invalid)
     valid = [r for r in rows if "value" in r]
     for r in valid:
         r["weight"] = r["value"] / total_value if total_value else 0

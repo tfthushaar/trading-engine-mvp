@@ -189,6 +189,13 @@ def profile(symbol: str) -> dict:
             info = yf.Ticker(sym).get_info() or {}
         except Exception:
             info = {}
+        high, low = info.get("fiftyTwoWeekHigh"), info.get("fiftyTwoWeekLow")
+        if not (high and low and high > 0 and low > 0):  # Yahoo reports a 52-week low of 0 for some yield indices
+            try:
+                year = history(sym, "1y")
+                high, low = float(year["High"].max()), float(year["Low"].min())
+            except MarketDataError:
+                high, low = None, None
         return {
             "symbol": sym,
             "name": info.get("longName") or info.get("shortName") or sym,
@@ -200,8 +207,8 @@ def profile(symbol: str) -> dict:
             "summary": (info.get("longBusinessSummary") or "")[:600] or None,
             "pe": info.get("trailingPE"),
             "beta": info.get("beta"),
-            "high_52w": info.get("fiftyTwoWeekHigh"),
-            "low_52w": info.get("fiftyTwoWeekLow"),
+            "high_52w": high,
+            "low_52w": low,
         }
 
     return cached(f"profile:{sym}", 86400, run, keep=lambda v: v.get("name") != sym or bool(v.get("sector")))

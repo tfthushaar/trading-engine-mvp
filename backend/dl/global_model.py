@@ -29,6 +29,19 @@ class GlobalModelUnavailable(RuntimeError):
     pass
 
 
+class NotScorable(md.MarketDataError):
+    """The symbol has prices, but the model cannot produce a meaningful forecast for it."""
+
+
+NO_VOLUME = "no trading volume"
+SHORT_HISTORY = "too little history"
+NO_DATA = "no price data"
+REASONS = {
+    NO_VOLUME: "The neural model doesn't cover this instrument: it has no trading volume and isn't a stock or ETF.",
+    SHORT_HISTORY: "The neural model needs about six months of trading history, and this symbol doesn't have that yet.",
+}
+
+
 @lru_cache(maxsize=1)
 def load() -> dict:
     """Load the manifest and rebuild every ensemble member with its exported weights."""
@@ -135,20 +148,29 @@ def _attribution(window: np.ndarray) -> list[dict]:
     return sorted(rows, key=lambda r: abs(r["contribution"]), reverse=True)
 
 
-def _frames(symbols: list[str], period: str = "1y"):
+def _frames(symbols: list[str], period: str = "1y") -> tuple[dict, list[dict]]:
+    """Feature frames for the symbols the model can score, plus the rest with the reason for each."""
     g = load()
     feats = g["manifest"]["features"]
+    window = g["manifest"]["window"]
     data = md.histories(list(symbols) + MARKET_SYMBOLS, period=period)
     market = {s: data[s] for s in MARKET_SYMBOLS if s in data}
-    frames = {}
+    if len(market) < len(MARKET_SYMBOLS):
+        raise md.MarketDataError("market data request failed: S&P 500 or VIX history is unavailable right now")
+    frames, skipped = {}, []
     for s in symbols:
         df = data.get(s)
-        if df is None or len(df) < g["manifest"]["window"] + 60:
-            continue
-        f = symbol_frame(df, market, feats)
-        if len(f) >= g["manifest"]["window"]:
-            frames[s] = (df, f)
-    return frames
+        if df is None or df.empty:
+            skipped.append({"symbol": s, "reason": NO_DATA})
+        elif float(df["Volume"].tail(60).sum()) == 0:
+            skipped.append({"symbol": s, "reason": NO_VOLUME})
+        else:
+            f = symbol_frame(df, market, feats) if len(df) >= window + 60 else None
+            if f is not None and len(f) >= window:
+                frames[s] = (df, f)
+            else:
+                skipped.append({"symbol": s, "reason": SHORT_HISTORY})
+    return frames, skipped
 
 
 def scan(symbols: list[str] | None = None, mc_samples: int = 8) -> dict:
@@ -157,9 +179,16 @@ def scan(symbols: list[str] | None = None, mc_samples: int = 8) -> dict:
     man = g["manifest"]
     W = man["window"]
     syms = md.valid_symbols(symbols or list(UNIVERSE))
-    frames = _frames(syms)
+    frames, skipped = _frames(syms)
     if not frames:
-        raise md.MarketDataError("no market data available for the requested symbols")
+        if all(x["reason"] == NO_DATA for x in skipped):
+            raise md.MarketDataError("no price data for the requested symbols")
+        return {
+            "horizon_days": man["horizon"], "as_of": None,
+            "model": {"version": man["version"], "trained_at": man["trained_at"], "members": [m["name"] for m in g["members"]]},
+            "breadth": {"bullish": 0, "neutral": 0, "bearish": 0, "mean_prob_up": None, "base_rate": man.get("test_base_rate")},
+            "signal_rule": man.get("signal_rule"), "rows": [], "skipped": skipped,
+        }
     order = list(frames)
     batch = np.stack([standardize(f.to_numpy()[-W:], g["mean"], g["std"]) for _, f in frames.values()])
     sc = _score_windows(batch, mc_samples=mc_samples)
@@ -200,6 +229,7 @@ def scan(symbols: list[str] | None = None, mc_samples: int = 8) -> dict:
         },
         "signal_rule": man.get("signal_rule"),
         "rows": rows,
+        "skipped": skipped,
     }
 
 
@@ -209,9 +239,12 @@ def symbol_detail(symbol: str, lookback: int = 120) -> dict:
     man = g["manifest"]
     W = man["window"]
     sym = md.normalize_symbol(symbol)
-    frames = _frames([sym], period="2y")
+    frames, skipped = _frames([sym], period="2y")
     if sym not in frames:
-        raise md.MarketDataError(f"not enough history to score {sym}")
+        reason = skipped[0]["reason"]
+        if reason == NO_DATA:
+            raise md.MarketDataError(f"no price data for {sym}")
+        raise NotScorable(REASONS[reason])
     df, f = frames[sym]
     z = standardize(f.to_numpy(), g["mean"], g["std"])
     wins = sliding(z, W)[-lookback:]

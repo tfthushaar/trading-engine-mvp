@@ -62,6 +62,13 @@ STRATEGIES: dict[str, tuple[str, str, Callable[[pd.DataFrame], np.ndarray]]] = {
 }
 
 
+NO_VOLUME_NOTE = "This instrument reports no trading volume, so volume-based rules can't trigger."
+
+
+def has_volume(df: pd.DataFrame) -> bool:
+    return float(df["Volume"].sum()) > 0
+
+
 def next_returns(close: pd.Series) -> np.ndarray:
     c = close.to_numpy(dtype=float)
     out = np.full(len(c), np.nan)

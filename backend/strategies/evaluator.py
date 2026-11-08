@@ -89,7 +89,7 @@ def evaluate(symbol: str, entry: float, stop: float, target: float, timeframe: s
         elif d["signal"] != "neutral":
             warnings.append(f"The neural ensemble leans the other way (P(up) {d['prob_up']:.2f}).")
     except Exception:
-        pass
+        warnings.append("The neural ensemble can't score this instrument, so the grade leaves it out.")
 
     parts = {"risk_reward": s_rr, "trend": s_trend, "momentum": s_mom, "stop_placement": s_stop, "target_realism": _clip(s_tgt), "entry_proximity": s_entry}
     weights = {"risk_reward": 0.25, "trend": 0.20, "momentum": 0.12, "stop_placement": 0.13, "target_realism": 0.10, "entry_proximity": 0.05}

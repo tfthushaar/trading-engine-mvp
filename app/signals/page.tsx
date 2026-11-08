@@ -58,6 +58,7 @@ function NeuralTable({ symbols }: { symbols: string | null }) {
             <span>As of {data.as_of}</span>
             <span>Base rate {rate(data.breadth.base_rate)} of 5-day windows rose in the test period</span>
             <span>{data.signal_rule}</span>
+            {data.skipped?.length > 0 && <span className="text-fg-2">Not scored: {data.skipped.map((x: any) => `${x.symbol} (${x.reason})`).join(", ")}</span>}
           </div>
           <div className="max-h-[calc(100vh-230px)] overflow-auto">
             <table className="tbl">
@@ -101,7 +102,7 @@ function NeuralTable({ symbols }: { symbols: string | null }) {
                 ))}
               </tbody>
             </table>
-            {!rows.length && <Empty title="No symbols match the filters" />}
+            {!rows.length && <Empty title={data.skipped?.length ? "None of these symbols can be scored" : "No symbols match the filters"} />}
           </div>
         </>
       )}

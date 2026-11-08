@@ -255,6 +255,29 @@ Fixed, with regression tests where testable (49 pytest):
 
 Checked and fine: yfinance 1.8 `download` uses a per-call context, so concurrent calls are safe.
 
+## Error honesty pass (2026-11-08)
+
+Trigger: "not enough history to score ^TNX". ^TNX, ^VIX and DX-Y.NYB have about 500 bars but zero volume on
+every bar, so `volume_z` is all NaN, `dropna` left 0 rows and the code blamed history. Found by
+auditing every endpoint against every instrument class (stock, ETF, index, yield, FX, future, crypto, fake).
+
+- Do not fake a neutral volume to score these: the model was trained on stocks and ETFs only.
+- `global_model.NotScorable`: `/api/signals/{symbol}` returns 200 with `supported: false` and the reason.
+  Scans return `skipped: [{symbol, reason}]` instead of a 502 or silently shorter rows.
+- Unknown symbols now say "no price data"; the symbol page shows one not-found state, and only real
+  symbols enter Recent. Adding an unknown symbol to a watchlist is refused with a message.
+- Lab names the missing feature (`volume_z`) and tells the user to deselect it.
+- Ranking bug: a strategy with 0 trades has Sharpe 0 and could outrank one that traded and lost. Zero-trade
+  strategies now sort last and cannot win the competition. Compare, backtest and competition carry a `note`.
+- Silent failures now surfaced: Overview sectors/movers/watchlist, Markets macro, Technicals, builder chart,
+  Arena rule compare, portfolio invalid symbols, journal unreadable entries, evaluator and AI agents when the
+  model cannot score. Competition has its own rate-limit bucket (it shared one with a different limit).
+- Yahoo returns a 52-week low of 0 for ^TNX; `profile` falls back to the price history when a value is not positive.
+- `npm run dev`, `api` and `test:py` failed under cmd.exe (forward-slash `.venv/Scripts/python`); now backslashes.
+- Chart: a chart removed before its first frame saved the library's default range, leaving about a third of the
+  plot blank. Dev only (StrictMode); production measured 0% blank before the fix. Only painted charts save a range
+  now, and the visible range stays locked when the chart is resized.
+
 ## Model improvement (done, no change shipped)
 
 - `research/experiments.py`: 8 candidates, walk-forward validation on data cut at 2023

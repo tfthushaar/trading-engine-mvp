@@ -61,12 +61,14 @@ def _compare(req: CompareRequest) -> dict:
             "id": sid, "name": name, "description": desc, "metrics": m, "trades": r["n_trades"],
             "trade_win_rate": r["win_rate"], "profit_factor": r["profit_factor"], "curve": _curve(r["dates"], r, max(1, len(r["dates"]) // 400)),
         })
-    out.sort(key=lambda x: x["metrics"]["sharpe"] if x["metrics"]["sharpe"] is not None else -99, reverse=True)
+    # A strategy that never traded has a Sharpe of 0, which must not outrank one that traded and lost
+    out.sort(key=lambda x: (x["trades"] > 0, x["metrics"]["sharpe"] if x["metrics"]["sharpe"] is not None else -99), reverse=True)
     for i, o in enumerate(out):
         o["rank"] = i + 1
     return {
         "symbol": md.normalize_symbol(req.symbol), "period": req.period, "interval": req.interval, "cost_bps": req.cost_bps,
         "start": bh["dates"][0] if bh["dates"] else None, "end": bh["dates"][-1] if bh["dates"] else None,
+        "note": None if rules.has_volume(df) else rules.NO_VOLUME_NOTE,
         "strategies": out,
         "buy_hold": {"metrics": bh_m, "curve": _curve(bh["dates"], bh, max(1, len(bh["dates"]) // 400))},
     }
@@ -132,6 +134,10 @@ def _backtest(req: BacktestRequest) -> dict:
         "buy_hold_curve": _curve(bh["dates"], bh, step),
         "trades": trades[-200:],
     }
+    if r["n_trades"] == 0:
+        out["note"] = "The entry conditions never held in this period, so no trades were made."
+        if not rules.has_volume(df):
+            out["note"] += f" {rules.NO_VOLUME_NOTE}"
     if req.monte_carlo and r["n_trades"] > 0:
         try:
             out["monte_carlo"] = montecarlo.bootstrap(r["returns"], n_sims=req.mc_sims, horizon=req.mc_horizon)

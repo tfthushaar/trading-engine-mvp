@@ -355,6 +355,7 @@ function ArenaTab({ opts, initialSymbol }: { opts: any; initialSymbol?: string }
   const [archs, setArchs] = useState<string[]>(["linear", "mlp", "lstm", "gru", "cnn", "transformer"]);
   const [state, setState] = useState<Record<string, { status: string; result?: any; error?: string }>>({});
   const [rules, setRules] = useState<any>(null);
+  const [rulesError, setRulesError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   useEffect(() => {
     if (initialSymbol) setCfg((c) => ({ ...c, symbol: initialSymbol }));
@@ -362,6 +363,7 @@ function ArenaTab({ opts, initialSymbol }: { opts: any; initialSymbol?: string }
   const run = async () => {
     setRunning(true);
     setRules(null);
+    setRulesError(null);
     setState(Object.fromEntries(archs.map((a) => [a, { status: "queued" }])));
     const queue = [...archs];
     let first: any = null;
@@ -384,8 +386,8 @@ function ArenaTab({ opts, initialSymbol }: { opts: any; initialSymbol?: string }
       try {
         const rr = await api("/api/strategies/compare", { body: { symbol: cfg.symbol, interval: cfg.interval, period: strategyPeriod, start: first.data.splits.test.start, end: first.data.splits.test.end, cost_bps: cfg.cost_bps } });
         setRules(rr);
-      } catch {
-        /* rules are optional context */
+      } catch (e: any) {
+        setRulesError(e?.message || "request failed");
       }
     }
     setRunning(false);
@@ -436,6 +438,7 @@ function ArenaTab({ opts, initialSymbol }: { opts: any; initialSymbol?: string }
             })}
           </div>
         )}
+        {rulesError && <ErrorBox error={`Rule strategies were left out of this comparison: ${rulesError}`} />}
         {board.length > 0 && (
           <>
             <Card title="Leaderboard" right={first && <span className="faint text-[11px]">test window {first.data.splits.test.start} to {first.data.splits.test.end} · ranked by Sharpe</span>} bodyClass="p-0">

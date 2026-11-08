@@ -79,7 +79,7 @@ export default function PortfolioPage() {
                 <tbody>
                   {(data?.positions ?? positions).map((p: any) => (
                     <tr key={p.symbol}>
-                      <td><SymbolLink symbol={p.symbol} /><div className="faint text-[10.5px]">{p.sector ?? ""}</div></td>
+                      <td><SymbolLink symbol={p.symbol} /><div className="faint text-[10.5px]">{p.error ?? p.sector ?? ""}</div></td>
                       <td className="r num">{p.quantity}</td>
                       <td className="r num">{price(p.avg_cost)}</td>
                       <td className="r num">{price(p.price)}</td>

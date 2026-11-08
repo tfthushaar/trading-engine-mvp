@@ -6,6 +6,7 @@ Stateless: the client sends the symbols it watches and polls; notifications are 
 from __future__ import annotations
 
 import hashlib
+import logging
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -14,6 +15,7 @@ import pandas as pd
 from backend.market import data as md
 from backend.market import indicators as ind
 
+log = logging.getLogger("trading_engine.scanner")
 SEVERITY_RANK = {"high": 0, "medium": 1, "low": 2}
 
 
@@ -142,8 +144,8 @@ def alerts(symbols: list[str], with_options: bool = True) -> dict:
 
         for row in global_model.scan(syms, mc_samples=0)["rows"]:
             neural[row["symbol"]] = row
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("neural scan failed during alerts: %s", exc)
     opt_syms = set(syms[:8]) if with_options else set()
     with ThreadPoolExecutor(max_workers=6) as pool:
         results = list(pool.map(lambda s: _alerts_for(s, data.get(s), neural.get(s), s in opt_syms), syms))
@@ -159,8 +161,8 @@ def heatmap(symbols: dict[str, tuple[str, str]]) -> dict:
         from backend.dl import global_model
 
         neural = {r["symbol"]: r for r in global_model.scan(list(symbols), mc_samples=0)["rows"]}
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("neural scan failed during heatmap: %s", exc)
     groups: dict[str, list] = {}
     for s, (name, sector) in symbols.items():
         if s not in q:

@@ -131,6 +131,7 @@ export default function JournalPage() {
         </div>
         <div className="min-w-0 space-y-3">
           <ErrorBox error={err} />
+          {report?.skipped_entries > 0 && <p className="muted text-[12px]">{report.skipped_entries} entries were left out of this analysis because their dates or prices could not be read.</p>}
           {report?.stats && (
             <div className="grid grid-cols-2 gap-3 rounded-[10px] border border-line bg-panel p-3 sm:grid-cols-4 xl:grid-cols-8">
               <Stat label="Trades" value={report.stats.total} sub={`${report.stats.open} open`} strong />

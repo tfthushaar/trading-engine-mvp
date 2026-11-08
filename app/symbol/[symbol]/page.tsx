@@ -26,7 +26,7 @@ function ChartPanel({ symbol }: { symbol: string }) {
   const { data, error, loading, reload } = useApi<any>(`/api/market/chart/${encodeURIComponent(symbol)}?range=${range}${interval ? `&interval=${interval}` : ""}`, { refreshMs: 60_000 });
   const effInterval = data?.interval ?? interval ?? "1d";
   const wantModel = prefs.indicators.includes("model") && effInterval === "1d";
-  const { data: sig } = useApi<any>(wantModel ? `/api/signals/${encodeURIComponent(symbol)}?lookback=250` : null, { staleMs: 300_000 });
+  const { data: sig, error: sigError } = useApi<any>(wantModel ? `/api/signals/${encodeURIComponent(symbol)}?lookback=250` : null, { staleMs: 300_000 });
   const model: ModelPoint[] | undefined = useMemo(
     () => sig?.history?.dates.map((d: string, i: number) => ({ t: Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 1000, p: sig.history.prob_up[i] })).filter((x: ModelPoint) => x.p != null),
     [sig],
@@ -74,7 +74,7 @@ function ChartPanel({ symbol }: { symbol: string }) {
         <PriceChart bars={data.bars} type={prefs.chartType} indicators={prefs.indicators} intraday={data.intraday} model={wantModel ? model : undefined} height={height} theme={theme} resetKey={`${symbol}:${data.range}:${data.interval}`} />
       )}
       {data && !data.bars.length && <Empty title="No bars for this timeframe" />}
-      {data && <div className="faint border-t border-line px-2.5 py-1 text-[10.5px]">{data.bars.length} bars · {INTERVAL_LABELS[data.interval]} · range high {price(data.high)} low {price(data.low)} {data.intraday ? "· times in exchange local time" : ""}</div>}
+      {data && <div className="faint border-t border-line px-2.5 py-1 text-[10.5px]">{data.bars.length} bars · {INTERVAL_LABELS[data.interval]} · range high {price(data.high)} low {price(data.low)} {data.intraday ? "· times in exchange local time" : ""}{wantModel && (sig?.supported === false || sigError) ? ` · Neural pane unavailable: ${sig?.reason ?? sigError?.message}` : ""}</div>}
     </Card>
   );
 }
@@ -85,7 +85,8 @@ function NeuralPanel({ symbol }: { symbol: string }) {
     <Card title="Neural forecast" right={<Link href="/lab?tab=model" className="btn btn-sm btn-ghost">Model card</Link>}>
       <ErrorBox error={error} onRetry={reload} />
       {loading && <Skeleton h={260} />}
-      {data && (
+      {data?.supported === false && <p className="muted text-[12.5px] leading-relaxed">{data.reason}</p>}
+      {data && data.supported !== false && (
         <div className="space-y-3">
           <div className="flex items-end justify-between">
             <div>
@@ -176,7 +177,8 @@ function News({ symbol }: { symbol: string }) {
 }
 
 function Technicals({ symbol }: { symbol: string }) {
-  const { data } = useApi<any>(`/api/market/technicals/${encodeURIComponent(symbol)}`, { staleMs: 300_000 });
+  const { data, error, reload } = useApi<any>(`/api/market/technicals/${encodeURIComponent(symbol)}`, { staleMs: 300_000 });
+  if (error && !data) return <ErrorBox error={error} onRetry={reload} />;
   if (!data) return <Skeleton h={160} />;
   const rows: [string, string][] = [
     ["Trend", data.trend], ["RSI (14)", num(data.rsi_14, 1)], ["SMA 20", price(data.sma_20)], ["SMA 50", price(data.sma_50)], ["SMA 200", price(data.sma_200)],
@@ -217,6 +219,7 @@ function StrategyArena({ symbol }: { symbol: string }) {
         <Link href={`/lab?tab=arena&symbol=${symbol}`} className="btn"><FlaskConical size={13} />Neural networks vs rules</Link>
       </div>
       <ErrorBox error={cmp.error} />
+      {r?.note && <p className="muted text-[12px]">{r.note}</p>}
       {r && (
         <div className="grid gap-3 lg:grid-cols-2">
           <table className="tbl">
@@ -245,12 +248,22 @@ export default function SymbolPage({ params }: { params: Promise<{ symbol: strin
   const { data: q } = useApi<any>(`/api/market/quotes?symbols=${encodeURIComponent(symbol)}`, { refreshMs: 30_000 });
   const { data: prof } = useApi<any>(`/api/market/profile/${encodeURIComponent(symbol)}`, { staleMs: 3_600_000 });
   const quote = q?.[symbol];
+  const known = !!quote;
   useEffect(() => {
-    pushRecent(symbol);
-  }, [symbol]);
+    if (known) pushRecent(symbol);
+  }, [symbol, known]);
   useEffect(() => {
     document.title = `${symbol}${quote ? ` ${price(quote.price)}` : ""} · Trading Engine`;
   }, [symbol, quote]);
+  if (q && !quote) {
+    return (
+      <Card className="mt-2">
+        <Empty title={`No market data for ${symbol}`} action={<Link href="/" className="btn">Back to overview</Link>}>
+          Check the symbol, or use Ctrl K to search. Yahoo Finance tickers can differ from other sites: Berkshire B is BRK-B, for example.
+        </Empty>
+      </Card>
+    );
+  }
   return (
     <div>
       <PageHeader

@@ -132,6 +132,11 @@ def build_dataset(
     missing = [f for f in features if f not in feat.columns]
     if missing:
         raise ValueError(f"features unavailable for this symbol: {', '.join(missing)}")
+    empty = [f for f in features if feat[f].isna().all()]
+    if "volume_z" in empty:
+        raise ValueError("This instrument reports no trading volume, so volume_z can't be computed. Deselect it under Input features.")
+    if empty:
+        raise ValueError(f"No data is available for these features on this symbol: {', '.join(empty)}. Deselect them under Input features.")
     feat = feat[features].dropna()
     close = df["Close"].reindex(feat.index)
     rows = len(feat)

@@ -132,5 +132,5 @@ def analyze(entries: list[dict]) -> dict:
     return {
         "score": round(score, 1), "grade": "A" if score >= 85 else "B" if score >= 70 else "C" if score >= 55 else "D",
         "rule_adherence": round(adherence, 3), "stats": stats, "patterns": patterns, "by_emotion": by_emotion,
-        "monthly": monthly, "equity_pct": equity, "vs_model": vs_model,
+        "monthly": monthly, "equity_pct": equity, "vs_model": vs_model, "skipped_entries": len(entries[:2000]) - len(rows),
     }

@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "concurrently -k -n web,api -c gray,white \"next dev\" \"npm run api\"",
     "web": "next dev",
-    "api": ".venv/Scripts/python -m uvicorn backend.app:app --reload --port 8000",
+    "api": ".venv\\Scripts\\python -m uvicorn backend.app:app --reload --port 8000",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:py": ".venv/Scripts/python -m pytest -q"
+    "test:py": ".venv\\Scripts\\python -m pytest -q"
   },
   "dependencies": {
     "lightweight-charts": "5.2.1",

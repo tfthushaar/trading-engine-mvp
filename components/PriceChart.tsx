@@ -59,7 +59,7 @@ export function PriceChart({
       layout: { attributionLogo: false, background: { type: ColorType.Solid, color: bg }, textColor: fg3, fontSize: 11, fontFamily: getComputedStyle(document.body).fontFamily, panes: { separatorColor: line, separatorHoverColor: line, enableResize: true } },
       grid: { vertLines: { color: line, style: LineStyle.Solid, visible: false }, horzLines: { color: line } },
       rightPriceScale: { borderColor: line, scaleMargins: { top: 0.08, bottom: 0.08 } },
-      timeScale: { borderColor: line, timeVisible: intraday, secondsVisible: false, rightOffset: 3, minBarSpacing: 1 },
+      timeScale: { borderColor: line, timeVisible: intraday, secondsVisible: false, rightOffset: 3, minBarSpacing: 1, lockVisibleTimeRangeOnResize: true },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: fg3, labelBackgroundColor: fg }, horzLine: { color: fg3, labelBackgroundColor: fg } },
       localization: { priceFormatter: (p: number) => fmtPrice(p) },
     });
@@ -153,8 +153,12 @@ export function PriceChart({
     });
     if (resetKey && viewRef.current.key === resetKey && viewRef.current.range) chart.timeScale().setVisibleLogicalRange(viewRef.current.range);
     else chart.timeScale().fitContent();
+    // A chart removed before its first frame still has the library's default spacing, not the fitted view
+    let painted = false;
+    const frame = requestAnimationFrame(() => { painted = true; });
     return () => {
-      viewRef.current = { key: resetKey, range: chart.timeScale().getVisibleLogicalRange() };
+      cancelAnimationFrame(frame);
+      if (painted) viewRef.current = { key: resetKey, range: chart.timeScale().getVisibleLogicalRange() };
       chart.remove();
       chartRef.current = null;
     };

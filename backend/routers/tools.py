@@ -201,10 +201,11 @@ def _competition(req: CompetitionRequest) -> dict:
     data = md.histories(syms, period=req.period, interval=req.interval)
     ppy = engine.periods_per_year(req.interval)
     cost = min(max(req.cost_bps, 0), 50) + min(max(req.slippage_bps, 0), 50)
-    per, wins = [], {k: 0 for k in rules.STRATEGIES}
+    per, wins, skipped = [], {k: 0 for k in rules.STRATEGIES}, []
     for s in syms:
         df = data.get(s)
         if df is None or len(df) < 120:
+            skipped.append({"symbol": s, "reason": "no price data" if df is None or df.empty else "too little history"})
             continue
         bh = rules.evaluate_window(df, np.ones(len(df)), None, None, 0.0)
         ranking = []
@@ -212,17 +213,21 @@ def _competition(req: CompetitionRequest) -> dict:
             r = rules.evaluate_window(df, fn(df), None, None, cost)
             m = engine.performance(r["returns"], r["positions"], ppy)
             ranking.append({"id": sid, "name": name, "sharpe": m["sharpe"], "total_return": m["total_return"], "max_drawdown": m["max_drawdown"], "trades": r["n_trades"]})
-        ranking.sort(key=lambda x: x["sharpe"] if x["sharpe"] is not None else -99, reverse=True)
-        wins[ranking[0]["id"]] += 1
-        per.append({"symbol": s, "winner": ranking[0]["name"], "ranking": ranking, "buy_hold": engine.performance(bh["returns"], None, ppy)})
-    best = max(wins, key=wins.get) if per else None
+        # A strategy that never traded has a Sharpe of 0, which must not outrank one that traded and lost
+        ranking.sort(key=lambda x: (x["trades"] > 0, x["sharpe"] if x["sharpe"] is not None else -99), reverse=True)
+        traded = ranking[0]["trades"] > 0
+        if traded:
+            wins[ranking[0]["id"]] += 1
+        per.append({"symbol": s, "winner": ranking[0]["name"] if traded else "No trades", "ranking": ranking, "buy_hold": engine.performance(bh["returns"], None, ppy),
+                    "note": None if rules.has_volume(df) else rules.NO_VOLUME_NOTE})
+    best = max(wins, key=wins.get) if any(wins.values()) else None
     return {"symbols": syms, "period": req.period, "interval": req.interval, "cost_bps": cost, "results": per,
-            "win_counts": {rules.STRATEGIES[k][0]: v for k, v in wins.items()}, "overall_best": rules.STRATEGIES[best][0] if best else None}
+            "win_counts": {rules.STRATEGIES[k][0]: v for k, v in wins.items()}, "overall_best": rules.STRATEGIES[best][0] if best else None, "skipped": skipped}
 
 
 @router.post("/strategies/competition")
 async def competition(req: CompetitionRequest):
-    limit("strategies", 30)
+    limit("competition", 30)
     res = await run_in_threadpool(_competition, req)
     if res["results"]:
         summary = [{"symbol": r["symbol"], "winner": r["winner"], "winner_sharpe": r["ranking"][0]["sharpe"], "buy_hold_sharpe": r["buy_hold"]["sharpe"]} for r in res["results"]]
@@ -231,7 +236,7 @@ async def competition(req: CompetitionRequest):
             f"Win counts: {res['win_counts']}. Per symbol: {json.dumps(summary)}. In 3-4 sentences, as a quant coach: which style dominated and why that fits these symbols "
             "in this period, how often any rule beat buy-and-hold on Sharpe, and a caution about selection bias."
         )
-        fallback = f"{res['overall_best']} won on the most symbols."
+        fallback = f"{res['overall_best']} won on the most symbols." if res["overall_best"] else "No strategy made any trades on these symbols."
         text, source = await llm.complete_or(fallback, prompt, system=GROUNDING, effort="low", max_tokens=700)
         res["interpretation"] = {"text": text, **_src(source)}
     return ok(res)

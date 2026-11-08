@@ -48,7 +48,8 @@ function CompetitionTab() {
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               <Card title="Wins by strategy" right={<span className="faint text-[11px]">{r.results.length} symbols · {r.cost_bps} bps all-in</span>}>
                 <Bars labels={Object.keys(r.win_counts).map((k) => k.split(" ")[0])} values={Object.values(r.win_counts) as number[]} format={(v) => String(v)} height={150} />
-                <div className="mt-1 text-[12px]">Overall leader: <b>{r.overall_best}</b></div>
+                <div className="mt-1 text-[12px]">Overall leader: <b>{r.overall_best ?? "none"}</b></div>
+                {r.skipped?.length > 0 && <div className="faint mt-1 text-[11px]">Skipped: {r.skipped.map((x: any) => `${x.symbol} (${x.reason})`).join(", ")}</div>}
               </Card>
               <Card title="Coach" right={<SourceTag source={r.interpretation?.source} note={r.interpretation?.note} />}><p className="text-[12.5px] leading-relaxed">{r.interpretation?.text}</p></Card>
             </div>
@@ -63,7 +64,7 @@ function CompetitionTab() {
                       <td className="r num font-semibold">{num(x.ranking[0].sharpe)}</td>
                       <td className="r num muted">{num(x.buy_hold.sharpe)}</td>
                       <td className="r"><Change value={x.ranking[0].total_return * 100} icon={false} /></td>
-                      <td className="faint text-[11px]">{x.ranking.map((s: any) => `${s.name.split(" ")[0]} ${num(s.sharpe, 1)}`).join(" · ")}</td>
+                      <td className="faint text-[11px]">{x.note ? `${x.note} ` : ""}{x.ranking.map((s: any) => `${s.name.split(" ")[0]} ${num(s.sharpe, 1)}`).join(" · ")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -147,7 +148,7 @@ function BuilderTab() {
   const bt = useAction((body: any, signal) => api("/api/strategies/backtest", { body, signal }));
   const r = bt.data;
   const chartRange = r ? (r.interval === "1d" ? (["1y", "2y", "5y", "10y", "max"].includes(r.period) ? r.period : "5y") : r.period) : null;
-  const { data: chart } = useApi<any>(r ? `/api/market/chart/${encodeURIComponent(r.symbol)}?range=${chartRange}&interval=${r.interval}` : null, { staleMs: 600_000 });
+  const { data: chart, error: chartError } = useApi<any>(r ? `/api/market/chart/${encodeURIComponent(r.symbol)}?range=${chartRange}&interval=${r.interval}` : null, { staleMs: 600_000 });
   const markers = useMemo(() => r?.trades?.flatMap((t: any) => [{ t: toTs(t.entry), kind: "entry" as const }, { t: toTs(t.exit), kind: "exit" as const }]) ?? [], [r]);
   const periods: string[] = catalog?.intervals?.[interval] ?? [];
   const applyPreset = (name: string) => {
@@ -192,12 +193,13 @@ function BuilderTab() {
               <Stat label="Profit factor" value={num(r.metrics.profit_factor)} sub={`avg ${fpct(r.metrics.avg_trade)}`} />
               <Stat label="Exposure" value={rate(r.metrics.exposure, 0)} sub={`${r.start} to ${r.end}`} />
             </div>
+            {r.note && <p className="muted text-[12px]">{r.note}</p>}
             <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
               <Card title="Equity and drawdown">
                 <LineChart x={r.curve.dates} series={[{ name: "Strategy", values: r.curve.equity, width: 2 }, { name: "Buy and hold", values: r.buy_hold_curve.equity, dash: "4 3" }]} height={180} yFormat={(v) => v.toFixed(2)} xFormat={(d) => String(d).slice(0, 7)} />
                 <LineChart x={r.curve.dates} series={[{ name: "Strategy drawdown", values: r.curve.drawdown, fill: true }, { name: "Buy and hold drawdown", values: r.buy_hold_curve.drawdown, dash: "4 3", tone: TONES[2] }]} height={100} yFormat={(v) => `${(v * 100).toFixed(0)}%`} xFormat={(d) => String(d).slice(0, 7)} />
               </Card>
-              <Card title="Trades on the chart" bodyClass="p-0">{chart?.bars ? <PriceChart bars={chart.bars} type="line" indicators={["volume"]} intraday={chart.intraday} markers={markers} height={300} theme={theme} /> : <div className="p-3"><Spinner /></div>}</Card>
+              <Card title="Trades on the chart" bodyClass="p-0">{chart?.bars ? <PriceChart bars={chart.bars} type="line" indicators={["volume"]} intraday={chart.intraday} markers={markers} height={300} theme={theme} /> : <div className="p-3">{chartError ? <ErrorBox error={chartError} /> : <Spinner />}</div>}</Card>
               {r.monte_carlo && !r.monte_carlo.error && (
                 <Card title={`Monte Carlo: ${r.monte_carlo.n_sims.toLocaleString()} block-bootstrap paths over ${r.monte_carlo.horizon_days} bars`}>
                   <LineChart
