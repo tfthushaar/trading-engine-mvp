@@ -105,7 +105,7 @@ function NeuralPanel({ symbol }: { symbol: string }) {
             <div className="eyebrow mb-1">Ensemble members · {Math.round(data.agreement * 100)}% agree on up</div>
             {data.members.map((m: any) => (
               <div key={m.id} className="flex items-center gap-2 py-0.5 text-[12px]">
-                <span className="w-24 truncate">{m.name}</span>
+                <span className="w-24 shrink-0 truncate">{m.name}</span>
                 <Meter value={m.prob_up} min={0.4} max={0.75} />
                 <span className="num w-11 text-right">{m.prob_up.toFixed(3)}</span>
               </div>
