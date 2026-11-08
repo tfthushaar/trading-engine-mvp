@@ -228,7 +228,9 @@ multiple watchlists, ⌘K and Settings.
 - [ ] GitHub repo rename: blocked (HTTP 403). The gh token lacks Administration permission. The user
   can rename it under GitHub > Settings > Repository name, or re-auth gh. Then run
   `git remote set-url origin https://github.com/tfthushaar/trading-engine.git`.
-- [ ] Nothing is committed or pushed. GitHub still has the old code. Waiting for the user to ask.
+- [x] Pushed to `main` on 2026-11-08 (76b62c3). Git has no identity configured on this machine, so
+  the commit used the GitHub noreply address for tfthushaar through one-off `-c` flags.
+- Vercel is not connected to the GitHub repo. Pushes do not deploy; run `vercel deploy --prod`.
 - [ ] Shared Groq key limits are per serverless instance, so they are soft caps.
 - [ ] The Groq key was pasted into a chat, so rotating it later is sensible. If rotated, update
   `.env` and the Vercel env var, then redeploy.
